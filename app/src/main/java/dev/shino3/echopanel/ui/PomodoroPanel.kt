@@ -61,11 +61,11 @@ fun PomodoroPanel(modifier: Modifier = Modifier) {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            PhaseTab("作業 25", state.phase == Phase.WORK) {
+            PhaseTab("作業 ${Pomodoro.workMs / 60_000}", state.phase == Phase.WORK) {
                 Pomodoro.switchPhase(ctx, Phase.WORK); state = Pomodoro.load(ctx)
             }
             Spacer(Modifier.width(T.gapS))
-            PhaseTab("休憩 5", state.phase == Phase.BREAK) {
+            PhaseTab("休憩 ${Pomodoro.breakMs / 60_000}", state.phase == Phase.BREAK) {
                 Pomodoro.switchPhase(ctx, Phase.BREAK); state = Pomodoro.load(ctx)
             }
             Spacer(Modifier.width(T.gapM))

@@ -17,17 +17,24 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
-import dev.shino3.echopanel.ui.ClockPanel
-import dev.shino3.echopanel.ui.PomodoroPanel
+import dev.shino3.echopanel.config.PanelConfig
+import dev.shino3.echopanel.pomodoro.Pomodoro
+import dev.shino3.echopanel.ui.RenderNode
 import dev.shino3.echopanel.ui.T
-import dev.shino3.echopanel.ui.WebPanel
+import kotlinx.coroutines.delay
 
 class MainActivity : ComponentActivity() {
 
@@ -85,35 +92,50 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private const val HA_URL = "http://10.1.111.145:8123"
-private const val PAGE_COUNT = 3
-
 @Composable
 fun PanelRoot() {
-    val pager = rememberPagerState(initialPage = 0, pageCount = { PAGE_COUNT })
+    val ctx = LocalContext.current
+    var cfg by remember { mutableStateOf(PanelConfig.load(ctx)) }
+
+    // panels.json の更新時刻を見て自動で読み直す。
+    // Mac から adb push しただけで画面が変わるので、レイアウトの試行錯誤が速い。
+    LaunchedEffect(Unit) {
+        var stamp = PanelConfig.file(ctx).lastModified()
+        while (true) {
+            delay(3_000L)
+            val now = PanelConfig.file(ctx).lastModified()
+            if (now != stamp) {
+                stamp = now
+                cfg = PanelConfig.load(ctx)
+            }
+        }
+    }
+
+    // 作業/休憩の長さも panels.json から与える
+    LaunchedEffect(cfg.workMinutes, cfg.breakMinutes) {
+        Pomodoro.configure(cfg.workMinutes, cfg.breakMinutes)
+    }
+
+    val pageCount = cfg.pages.size.coerceAtLeast(1)
+    val pager = rememberPagerState(initialPage = 0, pageCount = { pageCount })
 
     Box(Modifier.fillMaxSize().background(T.bg)) {
         HorizontalPager(
             state = pager,
             modifier = Modifier.fillMaxSize(),
-            // WebView ページは横スワイプを取り合うので、そこだけ端からのスワイプに任せる
-            userScrollEnabled = true
+            key = { it }
         ) { page ->
-            when (page) {
-                0 -> ClockPanel()
-                1 -> PomodoroPanel()
-                else -> WebPanel(HA_URL)
-            }
+            cfg.pages.getOrNull(page)?.let { RenderNode(it.root, cfg) }
         }
 
         Row(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .padding(bottom = 6.dp),
+                .padding(bottom = 5.dp),
             horizontalArrangement = Arrangement.Center
         ) {
-            repeat(PAGE_COUNT) { i ->
+            repeat(pageCount) { i ->
                 Box(
                     Modifier
                         .padding(horizontal = 3.dp)

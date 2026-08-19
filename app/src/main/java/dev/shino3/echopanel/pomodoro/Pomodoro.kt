@@ -39,13 +39,27 @@ object Pomodoro {
     private const val K_PAUSED_LEFT = "paused_left"
     private const val K_DONE = "done_sessions"
 
+    /**
+     * 「どの endAt を消化済みか」。
+     * 鳴動を進めるのは AlarmReceiver と load() の取りこぼし修復の2経路あり、
+     * 発火の瞬間に両方が走ると休憩を飛ばしてしまう。
+     * 同じ endAt に対しては一度しか進めないことでこれを防ぐ。
+     */
+    private const val K_CONSUMED = "consumed_end_at"
+
     const val ACTION_FIRE = "dev.shino3.echopanel.POMODORO_FIRE"
     const val EXTRA_PHASE = "phase"
+    const val EXTRA_END_AT = "end_at"
 
     var workMs: Long = 25 * 60 * 1000L
         private set
     var breakMs: Long = 5 * 60 * 1000L
         private set
+
+    fun configure(workMinutes: Int, breakMinutes: Int) {
+        workMs = workMinutes.coerceIn(1, 240) * 60_000L
+        breakMs = breakMinutes.coerceIn(1, 240) * 60_000L
+    }
 
     fun durationOf(phase: Phase): Long = if (phase == Phase.WORK) workMs else breakMs
 
@@ -62,9 +76,7 @@ object Pomodoro {
         // 動作中のまま終了時刻を過ぎている = 鳴動を取りこぼした場合。
         // 次フェーズの待機状態に落として整合を取る。
         if (running && endAt <= System.currentTimeMillis()) {
-            val next = if (phase == Phase.WORK) Phase.BREAK else Phase.WORK
-            val newDone = if (phase == Phase.WORK) done + 1 else done
-            save(c, PomodoroState(next, false, 0L, durationOf(next), newDone))
+            advanceOnce(c, endAt)
             return load(c)
         }
         return PomodoroState(phase, running, endAt, paused, done)
@@ -109,18 +121,31 @@ object Pomodoro {
         save(c, s.copy(phase = phase, running = false, endAt = 0L, pausedLeft = durationOf(phase)))
     }
 
-    /** 鳴動後に次フェーズへ送る。AlarmReceiver から呼ばれる。 */
-    fun advance(c: Context) {
-        val s = load(c)
-        val next = if (s.phase == Phase.WORK) Phase.BREAK else Phase.WORK
-        val done = if (s.phase == Phase.WORK) s.completedWorkSessions + 1 else s.completedWorkSessions
-        save(c, PomodoroState(next, false, 0L, durationOf(next), done))
+    /**
+     * 鳴動に対応する 1 回だけフェーズを進める。
+     *
+     * AlarmReceiver と load() の修復処理の両方から呼ばれるが、
+     * 同じ endAt について二度は進まない。これが無いと発火の瞬間に
+     * 両経路が走って休憩を丸ごと飛ばす (実機で発生した)。
+     */
+    fun advanceOnce(c: Context, endAt: Long) {
+        val p = prefs(c)
+        if (endAt != 0L && p.getLong(K_CONSUMED, -1L) == endAt) return
+
+        val phase = if (p.getString(K_PHASE, "WORK") == "BREAK") Phase.BREAK else Phase.WORK
+        val done = p.getInt(K_DONE, 0)
+        val next = if (phase == Phase.WORK) Phase.BREAK else Phase.WORK
+        val newDone = if (phase == Phase.WORK) done + 1 else done
+
+        p.edit().putLong(K_CONSUMED, endAt).apply()
+        save(c, PomodoroState(next, false, 0L, durationOf(next), newDone))
     }
 
-    private fun pendingIntent(c: Context, phase: Phase): PendingIntent {
+    private fun pendingIntent(c: Context, phase: Phase, endAt: Long): PendingIntent {
         val i = Intent(c, AlarmReceiver::class.java).apply {
             action = ACTION_FIRE
             putExtra(EXTRA_PHASE, phase.name)
+            putExtra(EXTRA_END_AT, endAt)
         }
         return PendingIntent.getBroadcast(
             c, 1, i,
@@ -130,7 +155,7 @@ object Pomodoro {
 
     private fun schedule(c: Context, endAt: Long, phase: Phase) {
         val am = c.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        val pi = pendingIntent(c, phase)
+        val pi = pendingIntent(c, phase, endAt)
         // Doze 下でも確実に発火させる。端末は常時給電なので電池影響は考えなくてよい。
         val triggerElapsed = SystemClock.elapsedRealtime() + (endAt - System.currentTimeMillis())
         am.setExactAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, triggerElapsed, pi)
@@ -138,7 +163,7 @@ object Pomodoro {
 
     private fun cancel(c: Context) {
         val am = c.getSystemService(Context.ALARM_SERVICE) as AlarmManager
-        am.cancel(pendingIntent(c, Phase.WORK))
-        am.cancel(pendingIntent(c, Phase.BREAK))
+        // PendingIntent の同一性は extras を見ないので、これで予約は消える
+        am.cancel(pendingIntent(c, Phase.WORK, 0L))
     }
 }

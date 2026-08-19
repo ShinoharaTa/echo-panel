@@ -1,0 +1,24 @@
+{
+  "haUrl": "http://10.1.111.145:8123",
+  "haToken": "",
+  "pages": [
+    {
+      "name": "3分割 1:2:1",
+      "layout": {
+        "dir": "row",
+        "children": [
+          { "weight": 1, "type": "clock", "seconds": false, "showDate": false },
+          { "weight": 2, "type": "pomodoro" },
+          {
+            "weight": 1,
+            "dir": "column",
+            "children": [
+              { "weight": 1, "type": "weather.now", "entity": "" },
+              { "weight": 1, "type": "calendar", "entity": "" }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}
