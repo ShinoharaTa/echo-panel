@@ -6,13 +6,16 @@ import android.view.View
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
@@ -21,10 +24,12 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
@@ -35,6 +40,7 @@ import dev.shino3.echopanel.pomodoro.Pomodoro
 import dev.shino3.echopanel.ui.RenderNode
 import dev.shino3.echopanel.ui.T
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
@@ -119,6 +125,8 @@ fun PanelRoot() {
     val pageCount = cfg.pages.size.coerceAtLeast(1)
     val pager = rememberPagerState(initialPage = 0, pageCount = { pageCount })
 
+    val scope = rememberCoroutineScope()
+
     Box(Modifier.fillMaxSize().background(T.bg)) {
         HorizontalPager(
             state = pager,
@@ -126,6 +134,22 @@ fun PanelRoot() {
             key = { it }
         ) { page ->
             cfg.pages.getOrNull(page)?.let { RenderNode(it.root, cfg) }
+        }
+
+        // 画面の左右端はページ送り専用レーンにする。
+        // ha.web の WebView が横スワイプを全て食ってしまい、ページから
+        // 出られなくなるため (実機で発生)。端 24dp だけはこちらが先に取る。
+        EdgeSwipeLane(Modifier.align(Alignment.CenterStart)) { d ->
+            scope.launch {
+                val to = if (d < 0) pager.currentPage + 1 else pager.currentPage - 1
+                pager.animateScrollToPage(to.coerceIn(0, pageCount - 1))
+            }
+        }
+        EdgeSwipeLane(Modifier.align(Alignment.CenterEnd)) { d ->
+            scope.launch {
+                val to = if (d < 0) pager.currentPage + 1 else pager.currentPage - 1
+                pager.animateScrollToPage(to.coerceIn(0, pageCount - 1))
+            }
         }
 
         Row(
@@ -146,4 +170,21 @@ fun PanelRoot() {
             }
         }
     }
+}
+
+/** 左右端に置く透明なスワイプ受け。累積 60dp 超の横ドラッグでページを送る。 */
+@Composable
+private fun EdgeSwipeLane(modifier: Modifier, onSwipe: (Float) -> Unit) {
+    Box(
+        modifier
+            .fillMaxHeight()
+            .width(24.dp)
+            .pointerInput(Unit) {
+                var acc = 0f
+                detectHorizontalDragGestures(
+                    onDragStart = { acc = 0f },
+                    onDragEnd = { if (kotlin.math.abs(acc) > 60f) onSwipe(acc) }
+                ) { _, dragAmount -> acc += dragAmount }
+            }
+    )
 }
