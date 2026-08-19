@@ -15,6 +15,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import dev.shino3.echopanel.config.Node
@@ -145,6 +146,9 @@ fun ForecastTile(tile: Node.Tile, cfg: PanelConfig) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     list.take(count).forEach { f ->
+                        // 値が無い行も透明で置いて高さを揃える。
+                        // 降水 0% の列だけ行が減ると、列ごとに天地がずれて
+                        // 錯視レベルではなく実際に高さが揃わなくなる。
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(
                                 text = f.time?.format(if (type == "hourly") HOUR_FMT else DAY_FMT) ?: "—",
@@ -162,12 +166,19 @@ fun ForecastTile(tile: Node.Tile, cfg: PanelConfig) {
                                 fontSize = (18 * s).sp,
                                 fontWeight = FontWeight.Light
                             )
-                            f.tempLow?.let {
-                                Text("%.0f°".format(it), color = T.fgFaint, fontSize = (11 * s).sp)
-                            }
-                            f.precipProbability?.let {
-                                if (it > 0) Text("${it.toInt()}%", color = T.fgFaint, fontSize = (10 * s).sp)
-                            }
+                            Text(
+                                text = f.tempLow?.let { "%.0f°".format(it) } ?: " ",
+                                color = T.fgFaint,
+                                fontSize = (11 * s).sp,
+                                modifier = Modifier.alpha(if (f.tempLow != null) 1f else 0f)
+                            )
+                            val pp = f.precipProbability
+                            Text(
+                                text = pp?.let { "${it.toInt()}%" } ?: " ",
+                                color = T.fgFaint,
+                                fontSize = (10 * s).sp,
+                                modifier = Modifier.alpha(if (pp != null && pp > 0) 1f else 0f)
+                            )
                         }
                     }
                 }

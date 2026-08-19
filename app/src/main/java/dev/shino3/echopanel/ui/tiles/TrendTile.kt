@@ -61,6 +61,7 @@ fun TrendTile(tile: Node.Tile, cfg: PanelConfig) {
             entity.isBlank() && !cfg.mock -> TileNotice("entity 未設定")
             points.size < 2 -> TileNotice("データ不足")
             else -> {
+                val s = tile.scale
                 val values = points.map { it.value }
                 val min = values.min()
                 val max = values.max()
@@ -74,12 +75,12 @@ fun TrendTile(tile: Node.Tile, cfg: PanelConfig) {
                         Text(
                             text = "%.1f".format(values.last()),
                             color = T.fg,
-                            fontSize = 26.sp
+                            fontSize = (26 * s).sp
                         )
                         Text(
                             text = "  最低 %.1f  最高 %.1f".format(min, max),
                             color = T.fgFaint,
-                            fontSize = 10.sp,
+                            fontSize = (10 * s).sp,
                             modifier = Modifier.padding(bottom = 4.dp)
                         )
                     }

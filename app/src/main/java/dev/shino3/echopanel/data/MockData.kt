@@ -39,9 +39,11 @@ object MockData {
     }
 
     fun calendar(): List<HaClient.CalendarEvent> {
+        // 相対時刻にしておく。最初の1件が常に未来になり、
+        // カウントダウン表示の検証がいつ実行しても成立する。
         val now = ZonedDateTime.now()
         return listOf(
-            HaClient.CalendarEvent("チーム定例", now.withHour(10).withMinute(0).toString(), false),
+            HaClient.CalendarEvent("チーム定例", now.plusMinutes(42).toString(), false),
             HaClient.CalendarEvent("歯医者", now.plusDays(1).withHour(15).withMinute(30).toString(), false),
             HaClient.CalendarEvent("粗大ごみ収集", now.plusDays(2).toLocalDate().toString(), true),
             HaClient.CalendarEvent("サーバーメンテ", now.plusDays(4).withHour(22).withMinute(0).toString(), false),

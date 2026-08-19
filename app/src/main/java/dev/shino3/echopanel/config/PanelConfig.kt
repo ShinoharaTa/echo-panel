@@ -146,7 +146,14 @@ data class PanelConfig(
       "layout": {
         "dir": "row",
         "children": [
-          { "weight": 2, "type": "clock", "seconds": false, "showDate": true },
+          {
+            "weight": 2,
+            "dir": "column",
+            "children": [
+              { "weight": 2.4, "type": "clock", "seconds": false, "showDate": true },
+              { "weight": 1, "type": "sensor.trend", "entity": "", "hours": 24, "label": "外気温", "scale": 0.8, "filled": false }
+            ]
+          },
           {
             "weight": 1,
             "dir": "column",
