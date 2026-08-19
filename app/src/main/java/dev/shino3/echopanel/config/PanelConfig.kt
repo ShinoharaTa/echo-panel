@@ -33,6 +33,23 @@ sealed class Node {
         fun str(key: String, def: String = ""): String = props.optString(key, def)
         fun bool(key: String, def: Boolean = false): Boolean = props.optBoolean(key, def)
         fun int(key: String, def: Int = 0): Int = props.optInt(key, def)
+        fun float(key: String, def: Float = 0f): Float =
+            props.optDouble(key, def.toDouble()).toFloat()
+
+        // ---- 全タイル共通の表示調整。JSON にそのまま書ける ----
+
+        /** 文字サイズの倍率。0.5〜3.0。既定 1.0 */
+        val scale: Float get() = float("scale", 1f).coerceIn(0.5f, 3f)
+
+        /** 背景枠を塗るか。false で素の黒地 */
+        val filled: Boolean get() = bool("filled", true)
+
+        /** 見出し行を出すか */
+        val showLabel: Boolean get() = bool("showLabel", true)
+
+        /** 見出し。showLabel=false なら null */
+        fun labelOrNull(def: String): String? =
+            if (showLabel) str("label", def) else null
     }
 
     data class Group(
@@ -118,6 +135,7 @@ data class PanelConfig(
 
   "_comment": "weight で比率を指定する。children があればグループ、無ければタイル。",
   "_tiles": ["clock", "pomodoro", "weather.now", "weather.forecast", "sensor.trend", "calendar", "ha.web", "blank"],
+  "_style": "全タイル共通: scale(文字倍率 0.5-3), filled(枠の塗り), showLabel(見出し), label(見出し文字)",
 
   "pages": [
     {
@@ -130,15 +148,20 @@ data class PanelConfig(
             "weight": 1,
             "dir": "column",
             "children": [
-              { "weight": 1, "type": "weather.now", "entity": "" },
-              { "weight": 1, "type": "calendar", "entity": "", "count": 3 }
+              { "weight": 1.2, "type": "weather.now", "entity": "", "showLabel": false },
+              { "weight": 1, "type": "weather.forecast", "entity": "", "count": 3, "showLabel": false, "scale": 0.9 },
+              { "weight": 1, "type": "calendar", "entity": "", "count": 2, "showLabel": false }
             ]
           }
         ]
       }
     },
     {
-      "name": "天気",
+      "name": "ポモドーロ",
+      "layout": { "dir": "row", "children": [ { "weight": 1, "type": "pomodoro" } ] }
+    },
+    {
+      "name": "天気詳細",
       "layout": {
         "dir": "column",
         "children": [
@@ -146,10 +169,6 @@ data class PanelConfig(
           { "weight": 1, "type": "sensor.trend", "entity": "", "hours": 24, "label": "外気温" }
         ]
       }
-    },
-    {
-      "name": "ポモドーロ",
-      "layout": { "dir": "row", "children": [ { "weight": 1, "type": "pomodoro" } ] }
     },
     {
       "name": "Home Assistant",

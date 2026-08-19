@@ -50,7 +50,10 @@ fun TrendTile(tile: Node.Tile, cfg: PanelConfig) {
         }
     }
 
-    TileFrame(label = tile.str("label", "推移") + " ${hours}h") {
+    TileFrame(
+        label = tile.labelOrNull("推移")?.let { "$it ${hours}h" },
+        filled = tile.filled
+    ) {
         when {
             !cfg.haConfigured -> TileNotice("haToken 未設定")
             entity.isBlank() -> TileNotice("entity 未設定")

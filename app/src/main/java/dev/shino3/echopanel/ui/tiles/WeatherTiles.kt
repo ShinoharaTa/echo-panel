@@ -66,7 +66,7 @@ fun WeatherNowTile(tile: Node.Tile, cfg: PanelConfig) {
         }
     }
 
-    TileFrame(label = tile.str("label", "現在")) {
+    TileFrame(label = tile.labelOrNull("現在"), filled = tile.filled) {
         when {
             !cfg.haConfigured -> TileNotice("haToken 未設定")
             entity.isBlank() -> TileNotice("entity 未設定")
@@ -74,7 +74,7 @@ fun WeatherNowTile(tile: Node.Tile, cfg: PanelConfig) {
             else -> BoxWithConstraints(Modifier.fillMaxSize()) {
                 // Column に入ると DSL マーカーで maxHeight が見えなくなるので先に取り出す
                 val boxH = maxHeight.value
-                val big = (boxH * 0.42f).coerceIn(18f, 64f)
+                val big = (boxH * 0.42f * tile.scale).coerceIn(18f, 120f)
                 Column(
                     Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.Center,
@@ -126,39 +126,45 @@ fun ForecastTile(tile: Node.Tile, cfg: PanelConfig) {
         }
     }
 
-    TileFrame(label = tile.str("label", if (type == "hourly") "時間予報" else "週間予報")) {
+    TileFrame(
+        label = tile.labelOrNull(if (type == "hourly") "時間予報" else "週間予報"),
+        filled = tile.filled
+    ) {
         when {
             !cfg.haConfigured -> TileNotice("haToken 未設定")
             entity.isBlank() -> TileNotice("entity 未設定")
             list.isEmpty() -> TileNotice("取得中")
-            else -> Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                list.take(count).forEach { f ->
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            text = f.time?.format(if (type == "hourly") HOUR_FMT else DAY_FMT) ?: "—",
-                            color = T.fgFaint,
-                            fontSize = 11.sp
-                        )
-                        Text(
-                            text = conditionLabel(f.condition),
-                            color = T.fgMuted,
-                            fontSize = 12.sp
-                        )
-                        Text(
-                            text = f.tempHigh?.let { "%.0f°".format(it) } ?: "—",
-                            color = T.fg,
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Light
-                        )
-                        f.tempLow?.let {
-                            Text("%.0f°".format(it), color = T.fgFaint, fontSize = 11.sp)
-                        }
-                        f.precipProbability?.let {
-                            if (it > 0) Text("${it.toInt()}%", color = T.fgFaint, fontSize = 10.sp)
+            else -> {
+                val s = tile.scale
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    list.take(count).forEach { f ->
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = f.time?.format(if (type == "hourly") HOUR_FMT else DAY_FMT) ?: "—",
+                                color = T.fgFaint,
+                                fontSize = (11 * s).sp
+                            )
+                            Text(
+                                text = conditionLabel(f.condition),
+                                color = T.fgMuted,
+                                fontSize = (12 * s).sp
+                            )
+                            Text(
+                                text = f.tempHigh?.let { "%.0f°".format(it) } ?: "—",
+                                color = T.fg,
+                                fontSize = (18 * s).sp,
+                                fontWeight = FontWeight.Light
+                            )
+                            f.tempLow?.let {
+                                Text("%.0f°".format(it), color = T.fgFaint, fontSize = (11 * s).sp)
+                            }
+                            f.precipProbability?.let {
+                                if (it > 0) Text("${it.toInt()}%", color = T.fgFaint, fontSize = (10 * s).sp)
+                            }
                         }
                     }
                 }

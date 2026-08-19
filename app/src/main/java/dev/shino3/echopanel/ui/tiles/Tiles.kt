@@ -66,7 +66,7 @@ fun ClockTile(tile: Node.Tile) {
         val boxH = maxHeight.value
         val byHeight = boxH * 0.46f
         val byWidth = maxWidth.value / (if (seconds) 4.6f else 3.1f)
-        val size = minOf(byHeight, byWidth).coerceIn(20f, 150f)
+        val size = (minOf(byHeight, byWidth) * tile.scale).coerceIn(20f, 200f)
 
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(

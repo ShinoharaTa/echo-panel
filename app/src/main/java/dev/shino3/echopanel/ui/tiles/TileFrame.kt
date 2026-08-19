@@ -19,6 +19,9 @@ import dev.shino3.echopanel.ui.T
 /**
  * タイルの外枠。
  * 面の分割数が変わっても見た目が揃うよう、余白と見出しはここだけで決める。
+ *
+ * label に null を渡すと見出し行ごと消える。JSON 側の "showLabel": false と
+ * "filled": false で、枠なし・見出しなしの素の表示にできる。
  */
 @Composable
 fun TileFrame(

@@ -54,33 +54,36 @@ fun CalendarTile(tile: Node.Tile, cfg: PanelConfig) {
         }
     }
 
-    TileFrame(label = tile.str("label", "予定")) {
+    TileFrame(label = tile.labelOrNull("予定"), filled = tile.filled) {
         when {
             !cfg.haConfigured -> TileNotice("haToken 未設定")
             entity.isBlank() -> TileNotice("entity 未設定")
             events.isEmpty() -> TileNotice("予定なし")
-            else -> Column(
-                Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                events.take(count).forEach { e ->
-                    Row(
-                        Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = whenLabel(e),
-                            color = T.fgMuted,
-                            fontSize = 11.sp,
-                            modifier = Modifier.padding(end = 6.dp)
-                        )
-                        Text(
-                            text = e.summary,
-                            color = T.fg,
-                            fontSize = 13.sp,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
+            else -> {
+                val s = tile.scale
+                Column(
+                    Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    events.take(count).forEach { e ->
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = whenLabel(e),
+                                color = T.fgMuted,
+                                fontSize = (11 * s).sp,
+                                modifier = Modifier.padding(end = 6.dp)
+                            )
+                            Text(
+                                text = e.summary,
+                                color = T.fg,
+                                fontSize = (13 * s).sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
                     }
                 }
             }
