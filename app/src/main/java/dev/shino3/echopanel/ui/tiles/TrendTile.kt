@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.sp
 import dev.shino3.echopanel.config.Node
 import dev.shino3.echopanel.config.PanelConfig
 import dev.shino3.echopanel.data.HaClient
+import dev.shino3.echopanel.data.MockData
 import dev.shino3.echopanel.ui.T
 import kotlinx.coroutines.delay
 
@@ -42,7 +43,8 @@ fun TrendTile(tile: Node.Tile, cfg: PanelConfig) {
     }
     var points by remember { mutableStateOf<List<HaClient.TrendPoint>>(emptyList()) }
 
-    LaunchedEffect(entity, hours, client) {
+    LaunchedEffect(entity, hours, client, cfg.mock) {
+        if (cfg.mock) { points = MockData.trend(hours); return@LaunchedEffect }
         if (client == null || entity.isBlank()) return@LaunchedEffect
         while (true) {
             points = client.history(entity, hours)
@@ -56,7 +58,7 @@ fun TrendTile(tile: Node.Tile, cfg: PanelConfig) {
     ) {
         when {
             !cfg.haConfigured -> TileNotice("haToken 未設定")
-            entity.isBlank() -> TileNotice("entity 未設定")
+            entity.isBlank() && !cfg.mock -> TileNotice("entity 未設定")
             points.size < 2 -> TileNotice("データ不足")
             else -> {
                 val values = points.map { it.value }

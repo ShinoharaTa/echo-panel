@@ -66,9 +66,11 @@ data class PanelConfig(
     val haToken: String,
     val workMinutes: Int,
     val breakMinutes: Int,
+    /** true で HA を呼ばず作り物のデータを流す。レイアウト調整用 */
+    val mock: Boolean,
     val pages: List<Page>,
 ) {
-    val haConfigured: Boolean get() = haUrl.isNotBlank() && haToken.isNotBlank()
+    val haConfigured: Boolean get() = mock || (haUrl.isNotBlank() && haToken.isNotBlank())
 
     companion object {
         private const val FILE = "panels.json"
@@ -101,6 +103,7 @@ data class PanelConfig(
                 haToken = o.optString("haToken", ""),
                 workMinutes = o.optInt("pomodoroWorkMinutes", 25),
                 breakMinutes = o.optInt("pomodoroBreakMinutes", 5),
+                mock = o.optBoolean("mock", false),
                 pages = pages.ifEmpty { parse(DEFAULT_JSON).pages }
             )
         }
@@ -150,7 +153,7 @@ data class PanelConfig(
             "children": [
               { "weight": 1.2, "type": "weather.now", "entity": "", "showLabel": false },
               { "weight": 1, "type": "weather.forecast", "entity": "", "count": 3, "showLabel": false, "scale": 0.9 },
-              { "weight": 1, "type": "calendar", "entity": "", "count": 2, "showLabel": false }
+              { "weight": 1, "type": "calendar", "entity": "", "count": 3, "showLabel": false }
             ]
           }
         ]

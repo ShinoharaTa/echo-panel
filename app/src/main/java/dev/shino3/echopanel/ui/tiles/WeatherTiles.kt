@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.sp
 import dev.shino3.echopanel.config.Node
 import dev.shino3.echopanel.config.PanelConfig
 import dev.shino3.echopanel.data.HaClient
+import dev.shino3.echopanel.data.MockData
 import dev.shino3.echopanel.ui.T
 import kotlinx.coroutines.delay
 import java.time.format.DateTimeFormatter
@@ -58,7 +59,8 @@ fun WeatherNowTile(tile: Node.Tile, cfg: PanelConfig) {
     val client = rememberClient(cfg)
     var st by remember { mutableStateOf<HaClient.EntityState?>(null) }
 
-    LaunchedEffect(entity, client) {
+    LaunchedEffect(entity, client, cfg.mock) {
+        if (cfg.mock) { st = MockData.weatherNow(); return@LaunchedEffect }
         if (client == null || entity.isBlank()) return@LaunchedEffect
         while (true) {
             st = client.state(entity)
@@ -69,7 +71,7 @@ fun WeatherNowTile(tile: Node.Tile, cfg: PanelConfig) {
     TileFrame(label = tile.labelOrNull("現在"), filled = tile.filled) {
         when {
             !cfg.haConfigured -> TileNotice("haToken 未設定")
-            entity.isBlank() -> TileNotice("entity 未設定")
+            entity.isBlank() && !cfg.mock -> TileNotice("entity 未設定")
             st == null -> TileNotice("取得中")
             else -> BoxWithConstraints(Modifier.fillMaxSize()) {
                 // Column に入ると DSL マーカーで maxHeight が見えなくなるので先に取り出す
@@ -118,7 +120,8 @@ fun ForecastTile(tile: Node.Tile, cfg: PanelConfig) {
     val client = rememberClient(cfg)
     var list by remember { mutableStateOf<List<HaClient.ForecastEntry>>(emptyList()) }
 
-    LaunchedEffect(entity, type, client) {
+    LaunchedEffect(entity, type, client, cfg.mock) {
+        if (cfg.mock) { list = MockData.forecast(count); return@LaunchedEffect }
         if (client == null || entity.isBlank()) return@LaunchedEffect
         while (true) {
             list = client.forecast(entity, type)
@@ -132,7 +135,7 @@ fun ForecastTile(tile: Node.Tile, cfg: PanelConfig) {
     ) {
         when {
             !cfg.haConfigured -> TileNotice("haToken 未設定")
-            entity.isBlank() -> TileNotice("entity 未設定")
+            entity.isBlank() && !cfg.mock -> TileNotice("entity 未設定")
             list.isEmpty() -> TileNotice("取得中")
             else -> {
                 val s = tile.scale

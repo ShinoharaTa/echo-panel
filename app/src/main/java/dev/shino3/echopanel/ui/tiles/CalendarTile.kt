@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.sp
 import dev.shino3.echopanel.config.Node
 import dev.shino3.echopanel.config.PanelConfig
 import dev.shino3.echopanel.data.HaClient
+import dev.shino3.echopanel.data.MockData
 import dev.shino3.echopanel.ui.T
 import kotlinx.coroutines.delay
 import java.time.LocalDate
@@ -46,7 +47,8 @@ fun CalendarTile(tile: Node.Tile, cfg: PanelConfig) {
     }
     var events by remember { mutableStateOf<List<HaClient.CalendarEvent>>(emptyList()) }
 
-    LaunchedEffect(entity, days, client) {
+    LaunchedEffect(entity, days, client, cfg.mock) {
+        if (cfg.mock) { events = MockData.calendar(); return@LaunchedEffect }
         if (client == null || entity.isBlank()) return@LaunchedEffect
         while (true) {
             events = client.calendarEvents(entity, days)
@@ -57,7 +59,7 @@ fun CalendarTile(tile: Node.Tile, cfg: PanelConfig) {
     TileFrame(label = tile.labelOrNull("予定"), filled = tile.filled) {
         when {
             !cfg.haConfigured -> TileNotice("haToken 未設定")
-            entity.isBlank() -> TileNotice("entity 未設定")
+            entity.isBlank() && !cfg.mock -> TileNotice("entity 未設定")
             events.isEmpty() -> TileNotice("予定なし")
             else -> {
                 val s = tile.scale
