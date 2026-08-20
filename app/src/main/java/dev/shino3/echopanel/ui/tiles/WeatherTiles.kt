@@ -27,6 +27,17 @@ import kotlinx.coroutines.delay
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
+/**
+ * 温度の意味色。30°以上=琥珀 / 10°以下=青 / 間はモノクロ。
+ * 「普段は白黒、極端なときだけ灯る」閾値制。
+ */
+fun tempColor(t: Double?) = when {
+    t == null -> T.fg
+    t >= 30.0 -> T.accHot
+    t <= 10.0 -> T.accCold
+    else -> T.fg
+}
+
 /** HA の condition を短い日本語にする。記号や色は使わない。 */
 fun conditionLabel(c: String?): String = when (c) {
     "clear-night" -> "快晴"
@@ -61,7 +72,7 @@ fun WeatherNowTile(tile: Node.Tile, cfg: PanelConfig) {
     var st by remember { mutableStateOf<HaClient.EntityState?>(null) }
 
     LaunchedEffect(entity, client, cfg.mock) {
-        if (cfg.mock) { st = MockData.weatherNow(); return@LaunchedEffect }
+        if (cfg.mock) { st = MockData.weatherNow(cfg.mockCondition); return@LaunchedEffect }
         if (client == null || entity.isBlank()) return@LaunchedEffect
         while (true) {
             st = client.state(entity)
@@ -86,7 +97,7 @@ fun WeatherNowTile(tile: Node.Tile, cfg: PanelConfig) {
                     val temp = st!!.attrDouble("temperature")
                     Text(
                         text = temp?.let { "%.1f°".format(it) } ?: "—",
-                        color = T.fg,
+                        color = tempColor(temp),
                         fontSize = big.sp,
                         fontWeight = FontWeight.Light
                     )
@@ -162,7 +173,7 @@ fun ForecastTile(tile: Node.Tile, cfg: PanelConfig) {
                             )
                             Text(
                                 text = f.tempHigh?.let { "%.0f°".format(it) } ?: "—",
-                                color = T.fg,
+                                color = tempColor(f.tempHigh),
                                 fontSize = (18 * s).sp,
                                 fontWeight = FontWeight.Light
                             )
@@ -175,7 +186,7 @@ fun ForecastTile(tile: Node.Tile, cfg: PanelConfig) {
                             val pp = f.precipProbability
                             Text(
                                 text = pp?.let { "${it.toInt()}%" } ?: " ",
-                                color = T.fgFaint,
+                                color = if (pp != null && pp >= 50) T.accCold else T.fgFaint,
                                 fontSize = (10 * s).sp,
                                 modifier = Modifier.alpha(if (pp != null && pp > 0) 1f else 0f)
                             )

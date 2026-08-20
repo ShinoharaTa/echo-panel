@@ -28,8 +28,8 @@ import java.util.Locale
 @Composable
 fun RenderTile(tile: Node.Tile, cfg: PanelConfig) {
     when (tile.type) {
-        "clock" -> ClockTile(tile)
-        "pomodoro" -> PomodoroPanel()
+        "clock" -> TileFrame(label = null, filled = tile.filled) { ClockTile(tile) }
+        "pomodoro" -> TileFrame(label = null, filled = tile.filled) { PomodoroPanel() }
         "weather.now" -> WeatherNowTile(tile, cfg)
         "weather.forecast" -> ForecastTile(tile, cfg)
         "sensor.trend" -> TrendTile(tile, cfg)

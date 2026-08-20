@@ -68,6 +68,10 @@ data class PanelConfig(
     val breakMinutes: Int,
     /** true で HA を呼ばず作り物のデータを流す。レイアウト調整用 */
     val mock: Boolean,
+    /** mock 時の天気 condition。背景の雨/雪/星の確認に使う */
+    val mockCondition: String,
+    /** 背景レイヤーが参照する weather エンティティ */
+    val weatherEntity: String,
     val pages: List<Page>,
 ) {
     val haConfigured: Boolean get() = mock || (haUrl.isNotBlank() && haToken.isNotBlank())
@@ -104,6 +108,8 @@ data class PanelConfig(
                 workMinutes = o.optInt("pomodoroWorkMinutes", 25),
                 breakMinutes = o.optInt("pomodoroBreakMinutes", 5),
                 mock = o.optBoolean("mock", false),
+                mockCondition = o.optString("mockCondition", "partlycloudy"),
+                weatherEntity = o.optString("weatherEntity", ""),
                 pages = pages.ifEmpty { parse(DEFAULT_JSON).pages }
             )
         }
@@ -132,6 +138,7 @@ data class PanelConfig(
 {
   "haUrl": "http://10.1.111.145:8123",
   "haToken": "",
+  "weatherEntity": "",
 
   "pomodoroWorkMinutes": 25,
   "pomodoroBreakMinutes": 5,

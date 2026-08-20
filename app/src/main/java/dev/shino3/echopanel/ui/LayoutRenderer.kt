@@ -42,12 +42,12 @@ fun RenderNode(node: Node, cfg: PanelConfig, modifier: Modifier = Modifier) {
         }
 
         is Node.Tile -> {
-            // タイル間の見切りは余白だけで作る。罫線は入れない。
+            // タイル間の見切りは余白だけ。背景は塗らない —
+            // ギャップから Backdrop(方眼と天体)が覗くのが意図した見た目。
             Box(
                 modifier
                     .fillMaxSize()
-                    .padding(2.dp)
-                    .background(T.bg)
+                    .padding(T.gapTile)
             ) {
                 RenderTile(node, cfg)
             }

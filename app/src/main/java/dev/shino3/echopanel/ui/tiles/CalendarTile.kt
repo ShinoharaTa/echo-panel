@@ -78,10 +78,6 @@ fun CalendarTile(tile: Node.Tile, cfg: PanelConfig) {
             events.isEmpty() -> TileNotice("予定なし")
             else -> {
                 val s = tile.scale
-                // カウントダウンを付ける対象 = 未来にある最初の時刻付き予定
-                val nextTimed = events.firstOrNull { e ->
-                    !e.allDay && startOf(e)?.isAfter(now) == true
-                }
                 Column(
                     Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(4.dp)
@@ -109,10 +105,17 @@ fun CalendarTile(tile: Node.Tile, cfg: PanelConfig) {
                                 overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.weight(1f)
                             )
-                            if (e === nextTimed) {
+                            // 12時間以内に始まる時刻付き予定にはすべてカウントダウン
+                            val st = if (e.allDay) null else startOf(e)
+                            val mins = st?.let { Duration.between(now, it).toMinutes() }
+                            if (mins != null && mins >= 0 && mins < 12 * 60) {
                                 Text(
-                                    text = countdownLabel(now, startOf(e)!!),
-                                    color = T.fgMuted,
+                                    text = countdownLabel(now, st),
+                                    color = when {
+                                        mins < 5 -> T.accAlert
+                                        mins < 15 -> T.accHot
+                                        else -> T.fgMuted
+                                    },
                                     fontSize = (11 * s).sp,
                                     maxLines = 1,
                                     modifier = Modifier.padding(start = 4.dp)

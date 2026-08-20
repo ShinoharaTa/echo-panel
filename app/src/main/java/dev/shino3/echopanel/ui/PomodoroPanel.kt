@@ -55,8 +55,7 @@ fun PomodoroPanel(modifier: Modifier = Modifier) {
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(T.bg)
-            .padding(T.edge),
+            .padding(T.gapS),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {

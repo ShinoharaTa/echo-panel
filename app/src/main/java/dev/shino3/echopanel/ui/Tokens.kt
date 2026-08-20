@@ -35,4 +35,17 @@ object T {
     val labelSize = 12.sp
 
     val radius = 10.dp
+
+    /** タイル外側の余白。両側で合わさって 6dp ギャップになる */
+    val gapTile = 3.dp
+
+    // ガラスカード
+    val glass = Color(0x99121212)      // 60% 黒: ブラー背景の上に敷く
+    val glassSolid = Color(0xE6141414) // ブラー画像が無いときのフォールバック
+    val glassEdge = Color(0x14FFFFFF)  // 1px の縁ハイライト
+
+    // 意味色 (閾値制。装飾には使わない)
+    val accHot = Color(0xFFFFA94D)     // 30°以上 / 予定15分前
+    val accCold = Color(0xFF5CB8FF)    // 10°以下 / 降水50%以上
+    val accAlert = Color(0xFFFF6B6B)   // 予定5分前
 }

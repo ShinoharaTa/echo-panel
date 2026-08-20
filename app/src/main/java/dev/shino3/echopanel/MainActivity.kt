@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.view.View
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -20,6 +21,7 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -29,18 +31,29 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import dev.shino3.echopanel.config.PanelConfig
+import dev.shino3.echopanel.data.HaClient
 import dev.shino3.echopanel.pomodoro.Pomodoro
+import dev.shino3.echopanel.ui.BackdropRenderer
+import dev.shino3.echopanel.ui.BackdropState
+import dev.shino3.echopanel.ui.LocalBackdrop
+import dev.shino3.echopanel.ui.PrecipLayer
 import dev.shino3.echopanel.ui.RenderNode
 import dev.shino3.echopanel.ui.T
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.time.ZonedDateTime
 
 class MainActivity : ComponentActivity() {
 
@@ -127,13 +140,59 @@ fun PanelRoot() {
 
     val scope = rememberCoroutineScope()
 
-    Box(Modifier.fillMaxSize().background(T.bg)) {
-        HorizontalPager(
-            state = pager,
-            modifier = Modifier.fillMaxSize(),
-            key = { it }
-        ) { page ->
-            cfg.pages.getOrNull(page)?.let { RenderNode(it.root, cfg) }
+    // ---- 背景: 天気 condition の取得(mock はそのまま、実データは10分毎) ----
+    var condition by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(cfg.mock, cfg.mockCondition, cfg.weatherEntity, cfg.haUrl, cfg.haToken) {
+        if (cfg.mock) { condition = cfg.mockCondition; return@LaunchedEffect }
+        if (!cfg.haConfigured || cfg.weatherEntity.isBlank()) { condition = null; return@LaunchedEffect }
+        val client = HaClient(cfg.haUrl, cfg.haToken)
+        while (true) {
+            condition = client.state(cfg.weatherEntity)?.state
+            delay(10 * 60_000L)
+        }
+    }
+
+    // ---- 背景: 静的レイヤーの生成(1分毎。太陽/月が動く) ----
+    val backdrop = remember { BackdropState() }
+    var sizePx by remember { mutableStateOf(IntSize.Zero) }
+    LaunchedEffect(sizePx, condition) {
+        if (sizePx.width <= 0 || sizePx.height <= 0) return@LaunchedEffect
+        while (true) {
+            val (sharp, blurred) = withContext(Dispatchers.Default) {
+                BackdropRenderer.render(sizePx.width, sizePx.height, condition, ZonedDateTime.now())
+            }
+            backdrop.sharp = sharp.asImageBitmap()
+            backdrop.blurred = blurred.asImageBitmap()
+            delay(60_000L)
+        }
+    }
+
+    Box(
+        Modifier
+            .fillMaxSize()
+            .background(T.bg)
+            .onSizeChanged { sizePx = it }
+    ) {
+        backdrop.sharp?.let {
+            Image(bitmap = it, contentDescription = null, modifier = Modifier.fillMaxSize())
+        }
+        PrecipLayer(condition)
+
+        CompositionLocalProvider(LocalBackdrop provides backdrop) {
+            HorizontalPager(
+                state = pager,
+                modifier = Modifier.fillMaxSize(),
+                key = { it }
+            ) { page ->
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        // 下端はページドットの帯として予約(グラフや文字と衝突させない)
+                        .padding(start = T.gapTile, end = T.gapTile, top = T.gapTile, bottom = 13.dp)
+                ) {
+                    cfg.pages.getOrNull(page)?.let { RenderNode(it.root, cfg) }
+                }
+            }
         }
 
         // 画面の左右端はページ送り専用レーンにする。

@@ -13,11 +13,11 @@ import kotlin.math.sin
  */
 object MockData {
 
-    fun weatherNow(): HaClient.EntityState = HaClient.EntityState(
+    fun weatherNow(condition: String = "partlycloudy"): HaClient.EntityState = HaClient.EntityState(
         entityId = "weather.mock",
-        state = "partlycloudy",
+        state = condition,
         attributes = JSONObject()
-            .put("temperature", 21.4)
+            .put("temperature", if (condition in setOf("rainy", "pouring", "snowy")) 18.4 else 31.2)
             .put("humidity", 62)
     )
 
