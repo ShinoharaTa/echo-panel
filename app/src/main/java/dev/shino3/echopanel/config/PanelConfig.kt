@@ -70,8 +70,18 @@ data class PanelConfig(
     val mock: Boolean,
     /** mock 時の天気 condition。背景の雨/雪/星の確認に使う */
     val mockCondition: String,
+    /** 背景の時刻を固定する 0-23。-1 で実時刻。昼の空を夜に確認するため */
+    val mockHour: Int,
     /** 背景レイヤーが参照する weather エンティティ */
     val weatherEntity: String,
+    /** 背景の出し方: auto (写真があれば写真) / scene (空) / photo / off */
+    val backdrop: String,
+    /** 背景が切り替わる間隔 (秒) */
+    val backdropIntervalSec: Int,
+    /** 背景の明るさ倍率。空を描くときだけ効く */
+    val backdropBrightness: Float,
+    /** 文字を守る幕の濃さ 0-1。背景を明るくしたら上げる */
+    val backdropScrim: Float,
     val pages: List<Page>,
 ) {
     val haConfigured: Boolean get() = mock || (haUrl.isNotBlank() && haToken.isNotBlank())
@@ -109,7 +119,12 @@ data class PanelConfig(
                 breakMinutes = o.optInt("pomodoroBreakMinutes", 5),
                 mock = o.optBoolean("mock", false),
                 mockCondition = o.optString("mockCondition", "partlycloudy"),
+                mockHour = o.optInt("mockHour", -1),
                 weatherEntity = o.optString("weatherEntity", ""),
+                backdrop = o.optString("backdrop", "auto"),
+                backdropIntervalSec = o.optInt("backdropIntervalSec", 60).coerceIn(5, 3600),
+                backdropBrightness = o.optDouble("backdropBrightness", 1.0).toFloat(),
+                backdropScrim = o.optDouble("backdropScrim", 0.55).toFloat(),
                 pages = pages.ifEmpty { parse(DEFAULT_JSON).pages }
             )
         }
@@ -139,6 +154,12 @@ data class PanelConfig(
   "haUrl": "http://10.1.111.145:8123",
   "haToken": "",
   "weatherEntity": "",
+
+  "_backdrop": "auto=写真があれば写真 / scene=空を描く / photo / off。写真は wallpapers/ に置く",
+  "backdrop": "auto",
+  "backdropIntervalSec": 60,
+  "backdropBrightness": 1.0,
+  "backdropScrim": 0.55,
 
   "pomodoroWorkMinutes": 25,
   "pomodoroBreakMinutes": 5,

@@ -6,7 +6,7 @@
   "pomodoroBreakMinutes": 5,
   "mock": true,
   "mockCondition": "rainy",
-  "_design": "各ページに主役をひとり。ホーム=要約で、天気カードと気温スパークラインはタップで天気詳細へ (tapPage)。詳細ページに現在天気は置かない (重複排除)",
+  "_design": "各ページに主役をひとり。背景は Nest Hub 型のスライドショー (wallpapers/ に写真を置けば写真、無ければ天気と時刻に連動した空)",
   "pages": [
     {
       "name": "ホーム",
@@ -109,5 +109,7 @@
         ]
       }
     }
-  ]
+  ],
+  "mockHour": -1,
+  "backdropIntervalSec": 60
 }

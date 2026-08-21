@@ -31,6 +31,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
@@ -44,6 +45,7 @@ import dev.shino3.echopanel.config.PanelConfig
 import dev.shino3.echopanel.data.HaClient
 import dev.shino3.echopanel.pomodoro.Pomodoro
 import dev.shino3.echopanel.ui.BackdropRenderer
+import dev.shino3.echopanel.ui.BackdropScrim
 import dev.shino3.echopanel.ui.BackdropState
 import dev.shino3.echopanel.ui.LocalBackdrop
 import dev.shino3.echopanel.ui.LocalPageNav
@@ -153,18 +155,45 @@ fun PanelRoot() {
         }
     }
 
-    // ---- 背景: 静的レイヤーの生成(1分毎。太陽/月が動く) ----
+    // ---- 背景: スライドショー ----
+    // 一定間隔で絵を差し替え、クロスフェードで繋ぐ (Nest Hub の Ambient と同じ挙動)。
+    // 写真が置いてあれば写真、無ければ天気と時刻に連動した空を描く。
     val backdrop = remember { BackdropState() }
     var sizePx by remember { mutableStateOf(IntSize.Zero) }
-    LaunchedEffect(sizePx, condition) {
+    LaunchedEffect(
+        sizePx, condition, cfg.backdrop, cfg.mockHour,
+        cfg.backdropIntervalSec, cfg.backdropBrightness
+    ) {
         if (sizePx.width <= 0 || sizePx.height <= 0) return@LaunchedEffect
+        if (cfg.backdrop == "off") return@LaunchedEffect
+
+        val photos = if (cfg.backdrop == "scene") emptyList()
+        else BackdropRenderer.photoFiles(ctx)
+        val usePhoto = photos.isNotEmpty() && cfg.backdrop != "scene"
+
+        var i = 0
         while (true) {
-            val (sharp, blurred) = withContext(Dispatchers.Default) {
-                BackdropRenderer.render(sizePx.width, sizePx.height, condition, ZonedDateTime.now())
+            val rendered = withContext(Dispatchers.Default) {
+                if (usePhoto) {
+                    BackdropRenderer.renderPhoto(photos[i % photos.size], sizePx.width, sizePx.height)
+                } else {
+                    val at = ZonedDateTime.now()
+                        .let { if (cfg.mockHour in 0..23) it.withHour(cfg.mockHour) else it }
+                    BackdropRenderer.render(
+                        sizePx.width, sizePx.height, condition,
+                        at, i, cfg.backdropBrightness
+                    )
+                }
             }
-            backdrop.sharp = sharp.asImageBitmap()
-            backdrop.blurred = blurred.asImageBitmap()
-            delay(60_000L)
+            if (rendered != null) {
+                backdrop.push(
+                    rendered.first.asImageBitmap(),
+                    rendered.second.asImageBitmap(),
+                    animate = i > 0
+                )
+            }
+            i++
+            delay(cfg.backdropIntervalSec * 1000L)
         }
     }
 
@@ -174,10 +203,19 @@ fun PanelRoot() {
             .background(T.bg)
             .onSizeChanged { sizePx = it }
     ) {
-        backdrop.sharp?.let {
+        // 前の絵 → 新しい絵の順に重ね、上を fade で出す = クロスフェード
+        backdrop.prevSharp?.let {
             Image(bitmap = it, contentDescription = null, modifier = Modifier.fillMaxSize())
         }
+        backdrop.sharp?.let {
+            Image(
+                bitmap = it,
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize().alpha(backdrop.fade.value)
+            )
+        }
         PrecipLayer(condition)
+        BackdropScrim(cfg.backdropScrim)
 
         CompositionLocalProvider(
             LocalBackdrop provides backdrop,

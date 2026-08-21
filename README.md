@@ -59,7 +59,39 @@ Fully Kiosk の Launch on Boot と `SYSTEM_ALERT_WINDOW` の付与も不要に�
 スクリーンセーバーだけは天体背景を敷かない黒無地。夜に点きっぱなしに
 なる画面なので、光をこれ以上出さないための意図的な例外。
 
-### 背景と、ガラスカード
+### 背景 (Nest Hub 型のスライドショー)
+
+背景は一定間隔で絵が切り替わり、切り替えはクロスフェードで繋ぐ。
+Google Nest Hub の Ambient モードと同じ挙動を狙っている。
+
+- **写真**: `wallpapers/` に画像を置くと、順にスライドショーになる。
+
+  ```bash
+  adb -s <serial> shell mkdir -p /sdcard/Android/data/dev.shino3.echopanel/files/wallpapers
+  adb -s <serial> push ~/Pictures/*.jpg \
+    /sdcard/Android/data/dev.shino3.echopanel/files/wallpapers/
+  ```
+
+- **空**: 写真が無ければ、時刻帯 (夜明け/昼/夕暮れ/夜) と天気で配色が決まる
+  グラデーションの空を描く。同じ時間帯にも3案あり、切り替わるたびに
+  配色とグラデーションの角度が変わる。曇り・雨・雪は色味をそちらに寄せ、
+  太陽と月も雲に隠れた分だけ薄くする。
+
+**背景を明るくすると小さい灰色の字が沈む。** Nest Hub が写真の上に時計を
+載せられるのは幕 (スクリム) を敷いているからで、ここでも同じことをする
+(`BackdropScrim`)。上下を濃く中央を薄くした縦グラデーションで、
+文字が乗る側だけを暗く戻す。背景を明るくしたら `backdropScrim` も上げること。
+夜の配色を意図して暗いままにしてあるのも同じ理由 (と、寝室で眩しくないため)。
+
+| キー | 既定 | 内容 |
+|---|---|---|
+| `backdrop` | `auto` | `auto` (写真があれば写真) / `scene` (空のみ) / `photo` / `off` |
+| `backdropIntervalSec` | 60 | 絵が切り替わる間隔 |
+| `backdropBrightness` | 1.0 | 空の明るさ倍率 (0.2-1.6) |
+| `backdropScrim` | 0.55 | 幕の濃さ 0-1 |
+| `mockHour` | -1 | 背景の時刻を固定 (0-23)。昼の空を夜に確認するため |
+
+### ガラスカード
 
 背景 (`ui/Backdrop.kt`) はドット方眼に太陽/月の弧を重ねた 1枚の Bitmap で、
 太陽は 6-18時、月は 18-6時 に弧の上を進む。月は月齢の形まで描く (`astro/Celestial.kt`)。
@@ -94,6 +126,7 @@ adb -s <serial> push panels.json \
 | `pomodoroBreakMinutes` | 5 | |
 | `mock` | `false` | true で HA を呼ばず作り物のデータを流す。レイアウト調整用 |
 | `mockCondition` | `partlycloudy` | mock 時の天気。背景の雨/雪/星の確認に使う |
+| `mockHour` | -1 | 背景の時刻を固定 (0-23)。-1 で実時刻 |
 | `pages` | | `{ name, layout }` の配列。横スワイプで送る |
 
 ### レイアウト木

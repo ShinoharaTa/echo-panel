@@ -18,6 +18,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.unit.IntOffset
@@ -52,21 +54,12 @@ fun TileFrame(
     if (filled) {
         m = m
             .drawBehind {
+                // 背景の切り替え中は前の絵も敷いておく。
+                // カードの中だけ絵が飛ぶのを防ぐ
+                backdrop?.prevBlurred?.let { prev -> drawBackdropSlice(prev, pos, 1f) }
                 val blurred = backdrop?.blurred
                 if (blurred != null) {
-                    val sx = pos.x.toInt().coerceIn(0, (blurred.width - 1).coerceAtLeast(0))
-                    val sy = pos.y.toInt().coerceIn(0, (blurred.height - 1).coerceAtLeast(0))
-                    val sw = size.width.toInt().coerceAtMost(blurred.width - sx)
-                    val sh = size.height.toInt().coerceAtMost(blurred.height - sy)
-                    if (sw > 0 && sh > 0) {
-                        drawImage(
-                            image = blurred,
-                            srcOffset = IntOffset(sx, sy),
-                            srcSize = IntSize(sw, sh),
-                            dstOffset = IntOffset.Zero,
-                            dstSize = IntSize(size.width.toInt(), size.height.toInt()),
-                        )
-                    }
+                    drawBackdropSlice(blurred, pos, backdrop.fade.value)
                     drawRect(T.glass)
                 } else {
                     drawRect(T.glassSolid)
@@ -89,6 +82,23 @@ fun TileFrame(
             content()
         }
     }
+}
+
+/** ブラー済み背景から自分の位置の切片を敷く */
+private fun DrawScope.drawBackdropSlice(image: ImageBitmap, pos: Offset, alpha: Float) {
+    val sx = pos.x.toInt().coerceIn(0, (image.width - 1).coerceAtLeast(0))
+    val sy = pos.y.toInt().coerceIn(0, (image.height - 1).coerceAtLeast(0))
+    val sw = size.width.toInt().coerceAtMost(image.width - sx)
+    val sh = size.height.toInt().coerceAtMost(image.height - sy)
+    if (sw <= 0 || sh <= 0) return
+    drawImage(
+        image = image,
+        srcOffset = IntOffset(sx, sy),
+        srcSize = IntSize(sw, sh),
+        dstOffset = IntOffset.Zero,
+        dstSize = IntSize(size.width.toInt(), size.height.toInt()),
+        alpha = alpha,
+    )
 }
 
 /** データが無い / 設定が足りないときの表示。落とさずに理由を出す。 */
