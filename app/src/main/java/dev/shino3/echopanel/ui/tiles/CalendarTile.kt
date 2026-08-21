@@ -80,7 +80,8 @@ fun CalendarTile(tile: Node.Tile, cfg: PanelConfig) {
                 val s = tile.scale
                 Column(
                     Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                    // 行数よりカードが高いときに上に張り付かないよう縦センターに置く
+                    verticalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterVertically)
                 ) {
                     events.take(count).forEach { e ->
                         Row(

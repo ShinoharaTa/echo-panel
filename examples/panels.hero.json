@@ -6,9 +6,7 @@
   "pomodoroBreakMinutes": 5,
   "mock": true,
   "mockCondition": "rainy",
-
-  "_design": "ホームはヒーロー+サテライト構成。箱 (filled) は使わず、時計を主役に脇役は背景に直接浮かべる。週間予報は天気詳細ページへ",
-
+  "_design": "ホームは主役+パネルの折衷。時計と推移は箱なしで背景に浮かべ、右列の天気と予定はガラスカードのパネルにする (Echo Show 純正ホームの型)",
   "pages": [
     {
       "name": "ホーム",
@@ -19,16 +17,43 @@
             "weight": 2.6,
             "dir": "column",
             "children": [
-              { "weight": 2.6, "type": "clock", "seconds": false, "showDate": true, "filled": false },
-              { "weight": 1, "type": "sensor.trend", "entity": "", "hours": 24, "showLabel": false, "scale": 0.8, "filled": false }
+              {
+                "weight": 2.6,
+                "type": "clock",
+                "seconds": false,
+                "showDate": true,
+                "filled": false
+              },
+              {
+                "weight": 1,
+                "type": "sensor.trend",
+                "entity": "",
+                "hours": 24,
+                "showLabel": false,
+                "scale": 0.8,
+                "filled": false
+              }
             ]
           },
           {
             "weight": 1,
             "dir": "column",
             "children": [
-              { "weight": 1, "type": "weather.now", "entity": "", "showLabel": false, "filled": false, "scale": 0.9 },
-              { "weight": 1, "type": "calendar", "entity": "", "count": 2, "showLabel": false, "filled": false, "scale": 0.9 }
+              {
+                "weight": 1,
+                "type": "weather.now",
+                "entity": "",
+                "showLabel": false,
+                "scale": 0.9
+              },
+              {
+                "weight": 1,
+                "type": "calendar",
+                "entity": "",
+                "count": 3,
+                "showLabel": false,
+                "scale": 0.9
+              }
             ]
           }
         ]
@@ -36,21 +61,48 @@
     },
     {
       "name": "ポモドーロ",
-      "layout": { "dir": "row", "children": [ { "weight": 1, "type": "pomodoro" } ] }
+      "layout": {
+        "dir": "row",
+        "children": [
+          {
+            "weight": 1,
+            "type": "pomodoro"
+          }
+        ]
+      }
     },
     {
       "name": "天気詳細",
       "layout": {
         "dir": "column",
         "children": [
-          { "weight": 1, "type": "weather.forecast", "entity": "", "count": 5 },
-          { "weight": 1, "type": "sensor.trend", "entity": "", "hours": 24, "label": "外気温" }
+          {
+            "weight": 1,
+            "type": "weather.forecast",
+            "entity": "",
+            "count": 5
+          },
+          {
+            "weight": 1,
+            "type": "sensor.trend",
+            "entity": "",
+            "hours": 24,
+            "label": "外気温"
+          }
         ]
       }
     },
     {
       "name": "Home Assistant",
-      "layout": { "dir": "row", "children": [ { "weight": 1, "type": "ha.web" } ] }
+      "layout": {
+        "dir": "row",
+        "children": [
+          {
+            "weight": 1,
+            "type": "ha.web"
+          }
+        ]
+      }
     }
   ]
 }
