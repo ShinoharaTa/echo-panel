@@ -12,7 +12,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import dev.shino3.echopanel.config.Node
 import dev.shino3.echopanel.config.PanelConfig
@@ -74,13 +73,13 @@ fun ClockTile(tile: Node.Tile) {
                     if (seconds) ":%02d".format(now.second) else "",
                 color = T.fg,
                 fontSize = size.sp,
-                fontWeight = FontWeight.Light
+                fontWeight = T.displayWeight
             )
             if (showDate && boxH > 90f) {
                 Text(
                     text = now.format(DATE_FMT),
                     color = T.fgMuted,
-                    fontSize = (size * 0.15f).coerceIn(10f, 20f).sp
+                    fontSize = (size * 0.15f).coerceIn(T.labelSize.value, 20f).sp
                 )
             }
         }

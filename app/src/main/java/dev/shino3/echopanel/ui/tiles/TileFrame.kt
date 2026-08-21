@@ -23,7 +23,6 @@ import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import dev.shino3.echopanel.ui.LocalBackdrop
 import dev.shino3.echopanel.ui.T
 
@@ -99,6 +98,6 @@ fun TileNotice(text: String) {
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(text, color = T.fgFaint, fontSize = 11.sp)
+        Text(text, color = T.fgFaint, fontSize = T.labelSize)
     }
 }

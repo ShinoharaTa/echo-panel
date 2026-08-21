@@ -16,7 +16,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import dev.shino3.echopanel.config.Node
 import dev.shino3.echopanel.config.PanelConfig
@@ -99,19 +98,19 @@ fun WeatherNowTile(tile: Node.Tile, cfg: PanelConfig) {
                         text = temp?.let { "%.1f°".format(it) } ?: "—",
                         color = tempColor(temp),
                         fontSize = big.sp,
-                        fontWeight = FontWeight.Light
+                        fontWeight = T.displayWeight
                     )
                     Text(
                         text = conditionLabel(st!!.state),
                         color = T.fgMuted,
-                        fontSize = (big * 0.32f).coerceIn(11f, 18f).sp
+                        fontSize = (big * 0.32f).coerceIn(T.labelSize.value, T.valueSize.value).sp
                     )
                     val hum = st!!.attrDouble("humidity")
                     if (hum != null && boxH > 96f) {
                         Text(
                             text = "湿度 ${hum.toInt()}%",
                             color = T.fgFaint,
-                            fontSize = 11.sp
+                            fontSize = T.labelSize
                         )
                     }
                 }
@@ -164,30 +163,29 @@ fun ForecastTile(tile: Node.Tile, cfg: PanelConfig) {
                             Text(
                                 text = f.time?.format(if (type == "hourly") HOUR_FMT else DAY_FMT) ?: "—",
                                 color = T.fgFaint,
-                                fontSize = (11 * s).sp
+                                fontSize = (T.labelSize.value * s).sp
                             )
                             Text(
                                 text = conditionLabel(f.condition),
                                 color = T.fgMuted,
-                                fontSize = (12 * s).sp
+                                fontSize = (T.bodySize.value * s).sp
                             )
                             Text(
                                 text = f.tempHigh?.let { "%.0f°".format(it) } ?: "—",
                                 color = tempColor(f.tempHigh),
-                                fontSize = (18 * s).sp,
-                                fontWeight = FontWeight.Light
+                                fontSize = (T.valueSize.value * s).sp
                             )
                             Text(
                                 text = f.tempLow?.let { "%.0f°".format(it) } ?: " ",
                                 color = T.fgFaint,
-                                fontSize = (11 * s).sp,
+                                fontSize = (T.labelSize.value * s).sp,
                                 modifier = Modifier.alpha(if (f.tempLow != null) 1f else 0f)
                             )
                             val pp = f.precipProbability
                             Text(
                                 text = pp?.let { "${it.toInt()}%" } ?: " ",
                                 color = if (pp != null && pp >= 50) T.accCold else T.fgFaint,
-                                fontSize = (10 * s).sp,
+                                fontSize = (T.labelSize.value * s).sp,
                                 modifier = Modifier.alpha(if (pp != null && pp > 0) 1f else 0f)
                             )
                         }

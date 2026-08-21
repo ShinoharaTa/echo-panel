@@ -1,6 +1,7 @@
 package dev.shino3.echopanel.dream
 
 import android.graphics.Color
+import android.graphics.Typeface
 import android.os.Handler
 import android.os.Looper
 import android.service.dreams.DreamService
@@ -68,6 +69,8 @@ class PanelDream : DreamService() {
             format24Hour = "H:mm"
             setTextColor(Color.WHITE)
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 104f)
+            // アプリ内の大時計 (FontWeight.Light) と同じ細さに揃える
+            typeface = Typeface.create("sans-serif-light", Typeface.NORMAL)
             gravity = Gravity.CENTER
         }
         val date = TextClock(this).apply {

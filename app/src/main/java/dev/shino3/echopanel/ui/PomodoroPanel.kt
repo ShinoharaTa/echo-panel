@@ -26,7 +26,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import dev.shino3.echopanel.pomodoro.Phase
 import dev.shino3.echopanel.pomodoro.Pomodoro
@@ -81,7 +80,7 @@ fun PomodoroPanel(modifier: Modifier = Modifier) {
             text = formatRemaining(remaining),
             color = T.fg,
             fontSize = T.timerSize,
-            fontWeight = FontWeight.Light
+            fontWeight = T.displayWeight
         )
 
         Spacer(Modifier.height(T.gapS))

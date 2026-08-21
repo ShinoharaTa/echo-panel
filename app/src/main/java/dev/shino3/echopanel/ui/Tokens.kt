@@ -1,6 +1,7 @@
 package dev.shino3.echopanel.ui
 
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -27,12 +28,18 @@ object T {
     val gapL = 24.dp
     val edge = 20.dp
 
-    // 文字サイズ
-    val displaySize = 108.sp
-    val timerSize = 96.sp
-    val titleSize = 20.sp
-    val bodySize = 15.sp
-    val labelSize = 12.sp
+    // 文字。役割は4段 + 大数字で、これ以外のサイズを直書きしない。
+    // タイル側で倍率を掛けるときも基準はここから取る (T.bodySize * scale)。
+    val labelSize = 11.sp   // 見出し・曜日・補足。fgFaint / fgMuted と組で使う
+    val bodySize = 13.sp    // 文。予定の件名・天気の言葉・ボタン
+    val valueSize = 18.sp   // 並びの中の数値。予報の最高気温など
+    val numSize = 26.sp     // タイルの主数値。推移の現在値など
+    val timerSize = 96.sp   // ポモドーロの残り時間
+
+    // 大数字 (時計・現在気温・タイマー) だけ細くする。
+    // 小さい字まで Light にすると 195dpi では線が痩せて読めないので、
+    // これより下のサイズは通常ウェイトで統一する。
+    val displayWeight = FontWeight.Light
 
     val radius = 10.dp
 

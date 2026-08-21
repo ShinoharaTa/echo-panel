@@ -90,7 +90,7 @@ fun CalendarTile(tile: Node.Tile, cfg: PanelConfig) {
                             Text(
                                 text = whenLabel(e),
                                 color = T.fgMuted,
-                                fontSize = (11 * s).sp,
+                                fontSize = (T.labelSize.value * s).sp,
                                 textAlign = TextAlign.End,
                                 maxLines = 1,
                                 modifier = Modifier
@@ -100,7 +100,7 @@ fun CalendarTile(tile: Node.Tile, cfg: PanelConfig) {
                             Text(
                                 text = e.summary,
                                 color = T.fg,
-                                fontSize = (13 * s).sp,
+                                fontSize = (T.bodySize.value * s).sp,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.weight(1f)
@@ -116,7 +116,7 @@ fun CalendarTile(tile: Node.Tile, cfg: PanelConfig) {
                                         mins < 15 -> T.accHot
                                         else -> T.fgMuted
                                     },
-                                    fontSize = (11 * s).sp,
+                                    fontSize = (T.labelSize.value * s).sp,
                                     maxLines = 1,
                                     modifier = Modifier.padding(start = 4.dp)
                                 )

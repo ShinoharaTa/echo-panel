@@ -75,12 +75,12 @@ fun TrendTile(tile: Node.Tile, cfg: PanelConfig) {
                         Text(
                             text = "%.1f".format(values.last()),
                             color = T.fg,
-                            fontSize = (26 * s).sp
+                            fontSize = (T.numSize.value * s).sp
                         )
                         Text(
                             text = "  最低 %.1f  最高 %.1f".format(min, max),
                             color = T.fgFaint,
-                            fontSize = (10 * s).sp,
+                            fontSize = (T.labelSize.value * s).sp,
                             modifier = Modifier.padding(bottom = 4.dp)
                         )
                     }
