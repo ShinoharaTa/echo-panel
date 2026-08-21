@@ -5,6 +5,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -27,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import dev.shino3.echopanel.pomodoro.Phase
 import dev.shino3.echopanel.pomodoro.Pomodoro
 import dev.shino3.echopanel.pomodoro.PomodoroState
@@ -51,10 +53,11 @@ fun PomodoroPanel(modifier: Modifier = Modifier) {
     val total = state.totalMs().coerceAtLeast(1L)
     val progress = 1f - (remaining.toFloat() / total.toFloat()).coerceIn(0f, 1f)
 
+    BoxWithConstraints(modifier.fillMaxSize().padding(T.gapS)) {
+    // 残り時間が主役。サイズは領域から決める (全画面なら大きく、分割枠なら控えめに)
+    val timerSp = (maxHeight.value * 0.40f).coerceIn(56f, 168f)
     Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(T.gapS),
+        modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -79,7 +82,7 @@ fun PomodoroPanel(modifier: Modifier = Modifier) {
         Text(
             text = formatRemaining(remaining),
             color = T.fg,
-            fontSize = T.timerSize,
+            fontSize = timerSp.sp,
             fontWeight = T.displayWeight
         )
 
@@ -96,6 +99,7 @@ fun PomodoroPanel(modifier: Modifier = Modifier) {
                 Pomodoro.reset(ctx); state = Pomodoro.load(ctx)
             }
         }
+    }
     }
 }
 
@@ -130,7 +134,7 @@ private fun PhaseTab(label: String, selected: Boolean, onClick: () -> Unit) {
         fontSize = T.labelSize,
         modifier = Modifier
             .clip(RoundedCornerShape(T.radius))
-            .background(if (selected) T.surfaceHi else T.bg)
+            .background(if (selected) T.surfaceHi else androidx.compose.ui.graphics.Color.Transparent)
             .clickable(onClick = onClick)
             .padding(horizontal = T.gapM, vertical = T.gapXs)
     )

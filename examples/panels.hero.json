@@ -6,7 +6,7 @@
   "pomodoroBreakMinutes": 5,
   "mock": true,
   "mockCondition": "rainy",
-  "_design": "ホームは主役+パネルの折衷。時計と推移は箱なしで背景に浮かべ、右列の天気と予定はガラスカードのパネルにする (Echo Show 純正ホームの型)",
+  "_design": "各ページに主役をひとり。ホーム=時計、ポモドーロ=残り時間 (箱なし)、天気詳細=現在気温のヒーロー + 週間/推移のカード (Apple 天気アプリの構造)",
   "pages": [
     {
       "name": "ホーム",
@@ -66,7 +66,8 @@
         "children": [
           {
             "weight": 1,
-            "type": "pomodoro"
+            "type": "pomodoro",
+            "filled": false
           }
         ]
       }
@@ -78,9 +79,18 @@
         "children": [
           {
             "weight": 1,
+            "type": "weather.now",
+            "entity": "",
+            "showLabel": false,
+            "filled": false,
+            "scale": 1.1
+          },
+          {
+            "weight": 1.5,
             "type": "weather.forecast",
             "entity": "",
-            "count": 5
+            "count": 5,
+            "showLabel": false
           },
           {
             "weight": 1,
