@@ -103,7 +103,7 @@ fun WeatherNowTile(tile: Node.Tile, cfg: PanelConfig) {
                 val boxH = maxHeight.value
                 // アイコンと数字が横に並ぶので、高さだけでなく幅からも上限を掛ける。
                 // 縦長の枠に置いたとき「18.4°」が折り返すのを防ぐ
-                val big = (minOf(boxH * 0.42f, maxWidth.value / 3.4f) * tile.scale)
+                val big = (minOf(boxH * T.heroFrac, maxWidth.value / 3.4f) * tile.scale)
                     .coerceIn(18f, 120f)
                 Column(
                     Modifier.fillMaxSize(),

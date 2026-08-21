@@ -55,7 +55,7 @@ fun PomodoroPanel(modifier: Modifier = Modifier) {
 
     BoxWithConstraints(modifier.fillMaxSize().padding(T.gapS)) {
     // 残り時間が主役。サイズは領域から決める (全画面なら大きく、分割枠なら控えめに)
-    val timerSp = (maxHeight.value * 0.40f).coerceIn(56f, 168f)
+    val timerSp = (maxHeight.value * T.heroFrac).coerceIn(56f, 168f)
     Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.Center,
