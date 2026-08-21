@@ -46,6 +46,7 @@ import dev.shino3.echopanel.pomodoro.Pomodoro
 import dev.shino3.echopanel.ui.BackdropRenderer
 import dev.shino3.echopanel.ui.BackdropState
 import dev.shino3.echopanel.ui.LocalBackdrop
+import dev.shino3.echopanel.ui.LocalPageNav
 import dev.shino3.echopanel.ui.PrecipLayer
 import dev.shino3.echopanel.ui.RenderNode
 import dev.shino3.echopanel.ui.T
@@ -178,7 +179,13 @@ fun PanelRoot() {
         }
         PrecipLayer(condition)
 
-        CompositionLocalProvider(LocalBackdrop provides backdrop) {
+        CompositionLocalProvider(
+            LocalBackdrop provides backdrop,
+            LocalPageNav provides { name ->
+                val idx = cfg.pages.indexOfFirst { it.name == name }
+                if (idx >= 0) scope.launch { pager.animateScrollToPage(idx) }
+            }
+        ) {
             HorizontalPager(
                 state = pager,
                 modifier = Modifier.fillMaxSize(),

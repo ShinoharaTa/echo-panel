@@ -6,7 +6,7 @@
   "pomodoroBreakMinutes": 5,
   "mock": true,
   "mockCondition": "rainy",
-  "_design": "各ページに主役をひとり。ホーム=時計、ポモドーロ=残り時間 (箱なし)、天気詳細=現在気温のヒーロー + 週間/推移のカード (Apple 天気アプリの構造)",
+  "_design": "各ページに主役をひとり。ホーム=要約で、天気カードと気温スパークラインはタップで天気詳細へ (tapPage)。詳細ページに現在天気は置かない (重複排除)",
   "pages": [
     {
       "name": "ホーム",
@@ -31,7 +31,8 @@
                 "hours": 24,
                 "showLabel": false,
                 "scale": 0.8,
-                "filled": false
+                "filled": false,
+                "tapPage": "天気詳細"
               }
             ]
           },
@@ -44,7 +45,8 @@
                 "type": "weather.now",
                 "entity": "",
                 "showLabel": false,
-                "scale": 0.9
+                "scale": 0.9,
+                "tapPage": "天気詳細"
               },
               {
                 "weight": 1,
@@ -78,19 +80,12 @@
         "dir": "column",
         "children": [
           {
-            "weight": 1,
-            "type": "weather.now",
-            "entity": "",
-            "showLabel": false,
-            "filled": false,
-            "scale": 1.1
-          },
-          {
             "weight": 1.5,
             "type": "weather.forecast",
             "entity": "",
             "count": 5,
-            "showLabel": false
+            "showLabel": false,
+            "filled": false
           },
           {
             "weight": 1,
