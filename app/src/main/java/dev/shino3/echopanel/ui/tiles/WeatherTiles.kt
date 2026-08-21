@@ -1,11 +1,15 @@
 package dev.shino3.echopanel.ui.tiles
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -16,6 +20,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.shino3.echopanel.config.Node
@@ -149,52 +158,147 @@ fun ForecastTile(tile: Node.Tile, cfg: PanelConfig) {
             !cfg.haConfigured -> TileNotice("haToken 未設定")
             entity.isBlank() && !cfg.mock -> TileNotice("entity 未設定")
             list.isEmpty() -> TileNotice("取得中")
-            else -> {
-                val s = tile.scale
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    list.take(count).forEach { f ->
-                        // 値が無い行も透明で置いて高さを揃える。
-                        // 降水 0% の列だけ行が減ると、列ごとに天地がずれて
-                        // 錯視レベルではなく実際に高さが揃わなくなる。
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(2.dp)
-                        ) {
-                            Text(
-                                text = f.time?.format(if (type == "hourly") HOUR_FMT else DAY_FMT) ?: "—",
-                                color = T.fgMuted,
-                                fontSize = (T.labelSize.value * s).sp
-                            )
-                            Text(
-                                text = conditionLabel(f.condition),
-                                color = T.fgMuted,
-                                fontSize = (T.bodySize.value * s).sp
-                            )
-                            Text(
-                                text = f.tempHigh?.let { "%.0f°".format(it) } ?: "—",
-                                color = tempColor(f.tempHigh),
-                                fontSize = (T.valueSize.value * s).sp
-                            )
-                            Text(
-                                text = f.tempLow?.let { "%.0f°".format(it) } ?: " ",
-                                color = T.fgMuted,
-                                fontSize = (T.labelSize.value * s).sp,
-                                modifier = Modifier.alpha(if (f.tempLow != null) 1f else 0f)
-                            )
-                            val pp = f.precipProbability
-                            Text(
-                                text = pp?.let { "${it.toInt()}%" } ?: " ",
-                                color = if (pp != null && pp >= 50) T.accCold else T.fgMuted,
-                                fontSize = (T.labelSize.value * s).sp,
-                                modifier = Modifier.alpha(if (pp != null && pp > 0) 1f else 0f)
-                            )
-                        }
-                    }
+            else ->
+                if (type == "hourly") HourlyStrip(list.take(count), tile.scale)
+                else DailyRows(list.take(count), tile.scale)
+        }
+    }
+}
+
+/**
+ * 週間予報は行で並べる。天気アプリの定石 (Apple 天気・Yahoo!天気の週間欄) で、
+ * 曜日・降水・気温が縦に揃うので日をまたいだ比較が一目でできる。
+ * 数値は右寄せの固定幅で桁を揃え、最高気温を行末に置く。
+ */
+@Composable
+private fun DailyRows(list: List<HaClient.ForecastEntry>, s: Float) {
+    // 週全体の最低〜最高を1本の物差しにして、日ごとの帯の位置で寒暖の推移を見せる
+    // (Apple 天気の週間欄と同じ)。狭いタイルでは省いて文字だけにする
+    val weekMin = list.mapNotNull { it.tempLow }.minOrNull()
+    val weekMax = list.mapNotNull { it.tempHigh }.maxOrNull()
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val showBar = maxWidth > 340.dp &&
+            weekMin != null && weekMax != null && weekMax - weekMin > 0.1
+        Column(
+            Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(2.dp, Alignment.CenterVertically)
+        ) {
+        list.forEach { f ->
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = f.time?.format(DAY_FMT) ?: "—",
+                    color = T.fgMuted,
+                    fontSize = (T.labelSize.value * s).sp,
+                    modifier = Modifier.width((22 * s).dp)
+                )
+                Text(
+                    text = conditionLabel(f.condition),
+                    color = T.fg,
+                    fontSize = (T.bodySize.value * s).sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = if (showBar) Modifier.width((78 * s).dp) else Modifier.weight(1f)
+                )
+                if (showBar) {
+                    RangeBar(
+                        low = f.tempLow, high = f.tempHigh,
+                        min = weekMin!!, max = weekMax!!,
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(horizontal = (12 * s).dp)
+                    )
                 }
+                val pp = f.precipProbability
+                Text(
+                    text = if (pp != null && pp > 0) "${pp.toInt()}%" else "",
+                    color = if (pp != null && pp >= 50) T.accCold else T.fgMuted,
+                    fontSize = (T.labelSize.value * s).sp,
+                    textAlign = TextAlign.End,
+                    modifier = Modifier.width((36 * s).dp)
+                )
+                Text(
+                    text = f.tempLow?.let { "%.0f°".format(it) } ?: "",
+                    color = T.fgMuted,
+                    fontSize = (T.labelSize.value * s).sp,
+                    textAlign = TextAlign.End,
+                    modifier = Modifier.width((32 * s).dp)
+                )
+                Text(
+                    text = f.tempHigh?.let { "%.0f°".format(it) } ?: "—",
+                    color = tempColor(f.tempHigh),
+                    fontSize = (T.valueSize.value * s).sp,
+                    textAlign = TextAlign.End,
+                    modifier = Modifier.width((44 * s).dp)
+                )
+            }
+        }
+        }
+    }
+}
+
+/** その日の最低〜最高を、週全体のレンジを物差しにした帯で描く */
+@Composable
+private fun RangeBar(low: Double?, high: Double?, min: Double, max: Double, modifier: Modifier) {
+    Canvas(modifier.height(4.dp)) {
+        val r = CornerRadius(size.height / 2f)
+        drawRoundRect(color = T.line, cornerRadius = r)
+        if (low != null && high != null && max > min) {
+            val span = (max - min).toFloat()
+            val x0 = ((low - min).toFloat() / span) * size.width
+            val x1 = ((high - min).toFloat() / span) * size.width
+            drawRoundRect(
+                color = T.fgMuted,
+                topLeft = Offset(x0, 0f),
+                size = Size((x1 - x0).coerceAtLeast(size.height), size.height),
+                cornerRadius = r
+            )
+        }
+    }
+}
+
+/** 時間予報は横並びの短冊。時刻→天気→気温を縦に読む (iOS の時間別ウィジェットと同型) */
+@Composable
+private fun HourlyStrip(list: List<HaClient.ForecastEntry>, s: Float) {
+    Row(
+        Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceEvenly,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        list.forEach { f ->
+            // 値が無い行も透明で置いて高さを揃える。
+            // 降水 0% の列だけ行が減ると、列ごとに天地がずれる。
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                Text(
+                    text = f.time?.format(HOUR_FMT) ?: "—",
+                    color = T.fgMuted,
+                    fontSize = (T.labelSize.value * s).sp
+                )
+                Text(
+                    text = conditionLabel(f.condition),
+                    color = T.fgMuted,
+                    fontSize = (T.bodySize.value * s).sp
+                )
+                Text(
+                    text = f.tempHigh?.let { "%.0f°".format(it) } ?: "—",
+                    color = tempColor(f.tempHigh),
+                    fontSize = (T.valueSize.value * s).sp
+                )
+                Text(
+                    text = f.tempLow?.let { "%.0f°".format(it) } ?: " ",
+                    color = T.fgMuted,
+                    fontSize = (T.labelSize.value * s).sp,
+                    modifier = Modifier.alpha(if (f.tempLow != null) 1f else 0f)
+                )
+                val pp = f.precipProbability
+                Text(
+                    text = pp?.let { "${it.toInt()}%" } ?: " ",
+                    color = if (pp != null && pp >= 50) T.accCold else T.fgMuted,
+                    fontSize = (T.labelSize.value * s).sp,
+                    modifier = Modifier.alpha(if (pp != null && pp > 0) 1f else 0f)
+                )
             }
         }
     }

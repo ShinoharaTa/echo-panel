@@ -68,20 +68,18 @@ fun TrendTile(tile: Node.Tile, cfg: PanelConfig) {
                 val span = (max - min).takeIf { it > 0.01 } ?: 1.0
 
                 Column(Modifier.fillMaxSize()) {
-                    Row(
-                        Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.Bottom
-                    ) {
+                    Row(Modifier.fillMaxWidth()) {
                         Text(
                             text = "%.1f".format(values.last()),
                             color = T.fg,
-                            fontSize = (T.numSize.value * s).sp
+                            fontSize = (T.numSize.value * s).sp,
+                            modifier = Modifier.alignByBaseline()
                         )
                         Text(
                             text = "  最低 %.1f  最高 %.1f".format(min, max),
                             color = T.fgMuted,
                             fontSize = (T.labelSize.value * s).sp,
-                            modifier = Modifier.padding(bottom = 4.dp)
+                            modifier = Modifier.alignByBaseline()
                         )
                     }
 
