@@ -98,8 +98,8 @@ adb -s <serial> push panels.json \
 |---|---|
 | `clock` | `seconds` (false), `showDate` (true) |
 | `pomodoro` | — |
-| `weather.now` | `entity` |
-| `weather.forecast` | `entity`, `forecastType` (`daily`/`hourly`), `count` (5, 1-8)。daily は行のリスト (広いタイルでは気温レンジバー付き)、hourly は横並びの短冊 |
+| `weather.now` | `entity`。アイコン + 気温が主役、天気の言葉と湿度は1行に従属 |
+| `weather.forecast` | `entity`, `forecastType` (`daily`/`hourly`), `count` (5, 1-8)。daily は Apple 天気式の行 (曜日\|アイコン\|降水%\|最低—帯—最高)、hourly は時刻\|アイコン\|気温の短冊 |
 | `sensor.trend` | `entity`, `hours` (24, 1-168) |
 | `calendar` | `entity`, `count` (3, 1-8), `days` (7, 1-60) |
 | `ha.web` | HA のダッシュボードを WebView で表示 (`haUrl`) |

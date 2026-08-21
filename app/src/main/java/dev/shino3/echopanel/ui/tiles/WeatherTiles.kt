@@ -5,11 +5,13 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -19,12 +21,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.shino3.echopanel.config.Node
@@ -32,6 +32,7 @@ import dev.shino3.echopanel.config.PanelConfig
 import dev.shino3.echopanel.data.HaClient
 import dev.shino3.echopanel.data.MockData
 import dev.shino3.echopanel.ui.T
+import dev.shino3.echopanel.ui.WeatherIcon
 import kotlinx.coroutines.delay
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -73,7 +74,10 @@ private fun rememberClient(cfg: PanelConfig): HaClient? =
         if (cfg.haConfigured) HaClient(cfg.haUrl, cfg.haToken) else null
     }
 
-/** 現在の天気。気温・湿度・体感を1枠に収める。 */
+/**
+ * 現在の天気。アイコン + 気温をひとかたまりの主役にして、
+ * 天気の言葉と湿度は1行の従属に畳む (iOS の小ウィジェットの解剖)。
+ */
 @Composable
 fun WeatherNowTile(tile: Node.Tile, cfg: PanelConfig) {
     val entity = tile.str("entity")
@@ -104,25 +108,25 @@ fun WeatherNowTile(tile: Node.Tile, cfg: PanelConfig) {
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     val temp = st!!.attrDouble("temperature")
-                    Text(
-                        text = temp?.let { "%.1f°".format(it) } ?: "—",
-                        color = tempColor(temp),
-                        fontSize = big.sp,
-                        fontWeight = T.displayWeight
-                    )
-                    Text(
-                        text = conditionLabel(st!!.state),
-                        color = T.fgMuted,
-                        fontSize = (big * 0.32f).coerceIn(T.labelSize.value, T.valueSize.value).sp
-                    )
-                    val hum = st!!.attrDouble("humidity")
-                    if (hum != null && boxH > 96f) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy((big * 0.16f).dp)
+                    ) {
+                        WeatherIcon(st!!.state, (big * 0.60f).dp)
                         Text(
-                            text = "湿度 ${hum.toInt()}%",
-                            color = T.fgMuted,
-                            fontSize = T.labelSize
+                            text = temp?.let { "%.1f°".format(it) } ?: "—",
+                            color = tempColor(temp),
+                            fontSize = big.sp,
+                            fontWeight = T.displayWeight
                         )
                     }
+                    val hum = st!!.attrDouble("humidity")
+                    Text(
+                        text = conditionLabel(st!!.state) +
+                            (hum?.takeIf { boxH > 80f }?.let { "  湿度 ${it.toInt()}%" } ?: ""),
+                        color = T.fgMuted,
+                        fontSize = (big * 0.28f).coerceIn(T.labelSize.value, T.valueSize.value).sp
+                    )
                 }
             }
         }
@@ -132,7 +136,7 @@ fun WeatherNowTile(tile: Node.Tile, cfg: PanelConfig) {
 private val DAY_FMT: DateTimeFormatter = DateTimeFormatter.ofPattern("E", Locale.JAPAN)
 private val HOUR_FMT: DateTimeFormatter = DateTimeFormatter.ofPattern("H時", Locale.JAPAN)
 
-/** 予報。横に並べてひと目で見る。daily / hourly を切り替えられる。 */
+/** 予報。daily は行のリスト、hourly は横並びの短冊。 */
 @Composable
 fun ForecastTile(tile: Node.Tile, cfg: PanelConfig) {
     val entity = tile.str("entity")
@@ -166,72 +170,73 @@ fun ForecastTile(tile: Node.Tile, cfg: PanelConfig) {
 }
 
 /**
- * 週間予報は行で並べる。天気アプリの定石 (Apple 天気・Yahoo!天気の週間欄) で、
- * 曜日・降水・気温が縦に揃うので日をまたいだ比較が一目でできる。
- * 数値は右寄せの固定幅で桁を揃え、最高気温を行末に置く。
+ * 週間予報。Apple 天気の週間欄の解剖に合わせる:
+ * 曜日 | アイコン | 降水% | 最低 —レンジ帯— 最高。
+ * 最低と最高は同じサイズにして、従属は色 (muted) だけで表す。
+ * 数値は右寄せの固定幅で桁を揃える。
  */
 @Composable
 private fun DailyRows(list: List<HaClient.ForecastEntry>, s: Float) {
-    // 週全体の最低〜最高を1本の物差しにして、日ごとの帯の位置で寒暖の推移を見せる
-    // (Apple 天気の週間欄と同じ)。狭いタイルでは省いて文字だけにする
+    // 週全体の最低〜最高を1本の物差しにして、日ごとの帯の位置で寒暖の推移を見せる。
+    // 狭いタイルでは帯を省き、全幅に間延びしないよう行の幅も絞って中央に置く
     val weekMin = list.mapNotNull { it.tempLow }.minOrNull()
     val weekMax = list.mapNotNull { it.tempHigh }.maxOrNull()
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val showBar = maxWidth > 340.dp &&
             weekMin != null && weekMax != null && weekMax - weekMin > 0.1
         Column(
-            Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(2.dp, Alignment.CenterVertically)
+            Modifier
+                .align(Alignment.Center)
+                .widthIn(max = 480.dp)
+                .fillMaxWidth()
+                .fillMaxHeight(),
+            verticalArrangement = Arrangement.spacedBy((2 * s).dp, Alignment.CenterVertically)
         ) {
-        list.forEach { f ->
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = f.time?.format(DAY_FMT) ?: "—",
-                    color = T.fgMuted,
-                    fontSize = (T.labelSize.value * s).sp,
-                    modifier = Modifier.width((22 * s).dp)
-                )
-                Text(
-                    text = conditionLabel(f.condition),
-                    color = T.fg,
-                    fontSize = (T.bodySize.value * s).sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = if (showBar) Modifier.width((78 * s).dp) else Modifier.weight(1f)
-                )
-                if (showBar) {
-                    RangeBar(
-                        low = f.tempLow, high = f.tempHigh,
-                        min = weekMin!!, max = weekMax!!,
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(horizontal = (12 * s).dp)
+            list.forEach { f ->
+                Row(
+                    Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy((8 * s).dp)
+                ) {
+                    Text(
+                        text = f.time?.format(DAY_FMT) ?: "—",
+                        color = T.fgMuted,
+                        fontSize = (T.labelSize.value * s).sp,
+                        modifier = Modifier.width((20 * s).dp)
+                    )
+                    WeatherIcon(f.condition, (20 * s).dp)
+                    val pp = f.precipProbability
+                    Text(
+                        text = if (pp != null && pp >= 10) "${pp.toInt()}%" else "",
+                        color = if (pp != null && pp >= 50) T.accCold else T.fgMuted,
+                        fontSize = (T.labelSize.value * s).sp,
+                        textAlign = TextAlign.End,
+                        modifier = Modifier.width((32 * s).dp)
+                    )
+                    if (!showBar) Spacer(Modifier.weight(1f))
+                    Text(
+                        text = f.tempLow?.let { "%.0f°".format(it) } ?: "",
+                        color = if (f.tempLow != null && f.tempLow <= 10.0) T.accCold else T.fgMuted,
+                        fontSize = (T.valueSize.value * s).sp,
+                        textAlign = TextAlign.End,
+                        modifier = Modifier.width((40 * s).dp)
+                    )
+                    if (showBar) {
+                        RangeBar(
+                            low = f.tempLow, high = f.tempHigh,
+                            min = weekMin!!, max = weekMax!!,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    Text(
+                        text = f.tempHigh?.let { "%.0f°".format(it) } ?: "—",
+                        color = tempColor(f.tempHigh),
+                        fontSize = (T.valueSize.value * s).sp,
+                        textAlign = TextAlign.End,
+                        modifier = Modifier.width((44 * s).dp)
                     )
                 }
-                val pp = f.precipProbability
-                Text(
-                    text = if (pp != null && pp > 0) "${pp.toInt()}%" else "",
-                    color = if (pp != null && pp >= 50) T.accCold else T.fgMuted,
-                    fontSize = (T.labelSize.value * s).sp,
-                    textAlign = TextAlign.End,
-                    modifier = Modifier.width((36 * s).dp)
-                )
-                Text(
-                    text = f.tempLow?.let { "%.0f°".format(it) } ?: "",
-                    color = T.fgMuted,
-                    fontSize = (T.labelSize.value * s).sp,
-                    textAlign = TextAlign.End,
-                    modifier = Modifier.width((32 * s).dp)
-                )
-                Text(
-                    text = f.tempHigh?.let { "%.0f°".format(it) } ?: "—",
-                    color = tempColor(f.tempHigh),
-                    fontSize = (T.valueSize.value * s).sp,
-                    textAlign = TextAlign.End,
-                    modifier = Modifier.width((44 * s).dp)
-                )
             }
-        }
         }
     }
 }
@@ -256,48 +261,32 @@ private fun RangeBar(low: Double?, high: Double?, min: Double, max: Double, modi
     }
 }
 
-/** 時間予報は横並びの短冊。時刻→天気→気温を縦に読む (iOS の時間別ウィジェットと同型) */
+/**
+ * 時間予報は横並びの短冊: 時刻 → アイコン → 気温 (iOS の時間別と同型)。
+ * 1列3項目に絞る。読むものではなく眺めるものなので、これ以上詰めない。
+ */
 @Composable
 private fun HourlyStrip(list: List<HaClient.ForecastEntry>, s: Float) {
     Row(
-        Modifier.fillMaxWidth(),
+        Modifier.fillMaxSize(),
         horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.CenterVertically
     ) {
         list.forEach { f ->
-            // 値が無い行も透明で置いて高さを揃える。
-            // 降水 0% の列だけ行が減ると、列ごとに天地がずれる。
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(2.dp)
+                verticalArrangement = Arrangement.spacedBy((4 * s).dp)
             ) {
                 Text(
                     text = f.time?.format(HOUR_FMT) ?: "—",
                     color = T.fgMuted,
                     fontSize = (T.labelSize.value * s).sp
                 )
-                Text(
-                    text = conditionLabel(f.condition),
-                    color = T.fgMuted,
-                    fontSize = (T.bodySize.value * s).sp
-                )
+                WeatherIcon(f.condition, (22 * s).dp)
                 Text(
                     text = f.tempHigh?.let { "%.0f°".format(it) } ?: "—",
                     color = tempColor(f.tempHigh),
                     fontSize = (T.valueSize.value * s).sp
-                )
-                Text(
-                    text = f.tempLow?.let { "%.0f°".format(it) } ?: " ",
-                    color = T.fgMuted,
-                    fontSize = (T.labelSize.value * s).sp,
-                    modifier = Modifier.alpha(if (f.tempLow != null) 1f else 0f)
-                )
-                val pp = f.precipProbability
-                Text(
-                    text = pp?.let { "${it.toInt()}%" } ?: " ",
-                    color = if (pp != null && pp >= 50) T.accCold else T.fgMuted,
-                    fontSize = (T.labelSize.value * s).sp,
-                    modifier = Modifier.alpha(if (pp != null && pp > 0) 1f else 0f)
                 )
             }
         }
