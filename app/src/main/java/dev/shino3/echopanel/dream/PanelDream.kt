@@ -76,12 +76,12 @@ class PanelDream : DreamService() {
         val date = TextClock(this).apply {
             format12Hour = null
             format24Hour = "M月d日(E)"
-            setTextColor(Color.parseColor("#8A8A8A"))
+            setTextColor(Color.parseColor("#A9A9A9"))
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 15f)
             gravity = Gravity.CENTER
         }
         timerView = TextView(this).apply {
-            setTextColor(Color.parseColor("#8A8A8A"))
+            setTextColor(Color.parseColor("#A9A9A9"))
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 18f)
             gravity = Gravity.CENTER
             visibility = android.view.View.GONE

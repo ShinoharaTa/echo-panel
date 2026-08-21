@@ -16,10 +16,12 @@ object T {
     val surfaceHi = Color(0xFF1F1F1F)
     val line = Color(0xFF2E2E2E)
 
-    // 文字
-    val fg = Color(0xFFF2F2F2)
-    val fgMuted = Color(0xFF8A8A8A)
-    val fgFaint = Color(0xFF4A4A4A)
+    // 文字。ほぼ黒のガラスカードに載るので、最弱の fgFaint でも
+    // コントラスト比 4:1 を割らない明るさにする。これより暗くしない。
+    // (旧 fgFaint 0xFF4A4A4A は 2.2:1 で、机の距離からは読めなかった)
+    val fg = Color(0xFFF2F2F2)      // 約 18:1
+    val fgMuted = Color(0xFFA9A9A9) // 約 8:1
+    val fgFaint = Color(0xFF767676) // 約 4.3:1
 
     // 間隔
     val gapXs = 4.dp
@@ -40,6 +42,10 @@ object T {
     // 小さい字まで Light にすると 195dpi では線が痩せて読めないので、
     // これより下のサイズは通常ウェイトで統一する。
     val displayWeight = FontWeight.Light
+
+    // 見出し (labelSize + fgFaint) は一番小さく一番暗い組なので、
+    // ウェイトで少し立たせて線の細さを補う
+    val labelWeight = FontWeight.Medium
 
     val radius = 10.dp
 

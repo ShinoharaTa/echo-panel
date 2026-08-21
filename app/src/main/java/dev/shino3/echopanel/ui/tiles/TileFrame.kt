@@ -81,6 +81,7 @@ fun TileFrame(
                 text = label,
                 color = T.fgFaint,
                 fontSize = T.labelSize,
+                fontWeight = T.labelWeight,
                 modifier = Modifier.padding(bottom = 4.dp)
             )
         }
