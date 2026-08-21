@@ -1,0 +1,56 @@
+{
+  "haUrl": "http://10.1.111.145:8123",
+  "haToken": "",
+  "weatherEntity": "",
+  "pomodoroWorkMinutes": 25,
+  "pomodoroBreakMinutes": 5,
+  "mock": true,
+  "mockCondition": "rainy",
+
+  "_design": "ホームはヒーロー+サテライト構成。箱 (filled) は使わず、時計を主役に脇役は背景に直接浮かべる。週間予報は天気詳細ページへ",
+
+  "pages": [
+    {
+      "name": "ホーム",
+      "layout": {
+        "dir": "row",
+        "children": [
+          {
+            "weight": 2.6,
+            "dir": "column",
+            "children": [
+              { "weight": 2.6, "type": "clock", "seconds": false, "showDate": true, "filled": false },
+              { "weight": 1, "type": "sensor.trend", "entity": "", "hours": 24, "showLabel": false, "scale": 0.8, "filled": false }
+            ]
+          },
+          {
+            "weight": 1,
+            "dir": "column",
+            "children": [
+              { "weight": 1, "type": "weather.now", "entity": "", "showLabel": false, "filled": false, "scale": 0.9 },
+              { "weight": 1, "type": "calendar", "entity": "", "count": 2, "showLabel": false, "filled": false, "scale": 0.9 }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "ポモドーロ",
+      "layout": { "dir": "row", "children": [ { "weight": 1, "type": "pomodoro" } ] }
+    },
+    {
+      "name": "天気詳細",
+      "layout": {
+        "dir": "column",
+        "children": [
+          { "weight": 1, "type": "weather.forecast", "entity": "", "count": 5 },
+          { "weight": 1, "type": "sensor.trend", "entity": "", "hours": 24, "label": "外気温" }
+        ]
+      }
+    },
+    {
+      "name": "Home Assistant",
+      "layout": { "dir": "row", "children": [ { "weight": 1, "type": "ha.web" } ] }
+    }
+  ]
+}

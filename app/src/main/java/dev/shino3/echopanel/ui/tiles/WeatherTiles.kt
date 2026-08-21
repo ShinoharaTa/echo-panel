@@ -101,7 +101,10 @@ fun WeatherNowTile(tile: Node.Tile, cfg: PanelConfig) {
             else -> BoxWithConstraints(Modifier.fillMaxSize()) {
                 // Column に入ると DSL マーカーで maxHeight が見えなくなるので先に取り出す
                 val boxH = maxHeight.value
-                val big = (boxH * 0.42f * tile.scale).coerceIn(18f, 120f)
+                // アイコンと数字が横に並ぶので、高さだけでなく幅からも上限を掛ける。
+                // 縦長の枠に置いたとき「18.4°」が折り返すのを防ぐ
+                val big = (minOf(boxH * 0.42f, maxWidth.value / 3.4f) * tile.scale)
+                    .coerceIn(18f, 120f)
                 Column(
                     Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.Center,
