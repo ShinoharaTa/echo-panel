@@ -21,7 +21,8 @@ object T {
     // (旧 fgFaint 0xFF4A4A4A は 2.2:1 で、机の距離からは読めなかった)
     val fg = Color(0xFFF2F2F2)      // 約 18:1
     val fgMuted = Color(0xFFA9A9A9) // 約 8:1
-    val fgFaint = Color(0xFF767676) // 約 4.3:1
+    val fgFaint = Color(0xFF767676) // 約 4.3:1。見出し・ドット・非選択タブなど
+                                    // 脇役専用。データを背負う字には使わない
 
     // 間隔
     val gapXs = 4.dp
@@ -32,16 +33,15 @@ object T {
 
     // 文字。役割は4段 + 大数字で、これ以外のサイズを直書きしない。
     // タイル側で倍率を掛けるときも基準はここから取る (T.bodySize * scale)。
-    val labelSize = 11.sp   // 見出し・曜日・補足。fgFaint / fgMuted と組で使う
-    val bodySize = 13.sp    // 文。予定の件名・天気の言葉・ボタン
-    val valueSize = 18.sp   // 並びの中の数値。予報の最高気温など
-    val numSize = 26.sp     // タイルの主数値。推移の現在値など
+    val labelSize = 12.sp   // 見出し・曜日・補足。fgFaint / fgMuted と組で使う
+    val bodySize = 14.sp    // 文。予定の件名・天気の言葉・ボタン
+    val valueSize = 20.sp   // 並びの中の数値。予報の最高気温など
+    val numSize = 28.sp     // タイルの主数値。推移の現在値など
     val timerSize = 96.sp   // ポモドーロの残り時間
 
-    // 大数字 (時計・現在気温・タイマー) だけ細くする。
-    // 小さい字まで Light にすると 195dpi では線が痩せて読めないので、
-    // これより下のサイズは通常ウェイトで統一する。
-    val displayWeight = FontWeight.Light
+    // 大数字も含めて通常ウェイトで統一する。Light は 195dpi では
+    // サイズに対して線が細く、机の距離だと視認性が落ちる (実機比較で決定)。
+    val displayWeight = FontWeight.Normal
 
     // 見出し (labelSize + fgFaint) は一番小さく一番暗い組なので、
     // ウェイトで少し立たせて線の細さを補う

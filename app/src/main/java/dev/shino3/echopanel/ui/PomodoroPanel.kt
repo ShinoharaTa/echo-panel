@@ -69,7 +69,7 @@ fun PomodoroPanel(modifier: Modifier = Modifier) {
             Spacer(Modifier.width(T.gapM))
             Text(
                 text = "完了 ${state.completedWorkSessions}",
-                color = T.fgFaint,
+                color = T.fgMuted,
                 fontSize = T.labelSize
             )
         }

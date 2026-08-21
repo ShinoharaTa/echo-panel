@@ -80,7 +80,7 @@ fun CalendarTile(tile: Node.Tile, cfg: PanelConfig) {
                 val s = tile.scale
                 Column(
                     Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     events.take(count).forEach { e ->
                         Row(

@@ -99,6 +99,6 @@ fun TileNotice(text: String) {
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(text, color = T.fgFaint, fontSize = T.labelSize)
+        Text(text, color = T.fgMuted, fontSize = T.labelSize)
     }
 }

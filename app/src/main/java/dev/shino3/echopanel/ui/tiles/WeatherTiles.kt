@@ -16,6 +16,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.shino3.echopanel.config.Node
 import dev.shino3.echopanel.config.PanelConfig
@@ -109,7 +110,7 @@ fun WeatherNowTile(tile: Node.Tile, cfg: PanelConfig) {
                     if (hum != null && boxH > 96f) {
                         Text(
                             text = "湿度 ${hum.toInt()}%",
-                            color = T.fgFaint,
+                            color = T.fgMuted,
                             fontSize = T.labelSize
                         )
                     }
@@ -159,10 +160,13 @@ fun ForecastTile(tile: Node.Tile, cfg: PanelConfig) {
                         // 値が無い行も透明で置いて高さを揃える。
                         // 降水 0% の列だけ行が減ると、列ごとに天地がずれて
                         // 錯視レベルではなく実際に高さが揃わなくなる。
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
                             Text(
                                 text = f.time?.format(if (type == "hourly") HOUR_FMT else DAY_FMT) ?: "—",
-                                color = T.fgFaint,
+                                color = T.fgMuted,
                                 fontSize = (T.labelSize.value * s).sp
                             )
                             Text(
@@ -177,14 +181,14 @@ fun ForecastTile(tile: Node.Tile, cfg: PanelConfig) {
                             )
                             Text(
                                 text = f.tempLow?.let { "%.0f°".format(it) } ?: " ",
-                                color = T.fgFaint,
+                                color = T.fgMuted,
                                 fontSize = (T.labelSize.value * s).sp,
                                 modifier = Modifier.alpha(if (f.tempLow != null) 1f else 0f)
                             )
                             val pp = f.precipProbability
                             Text(
                                 text = pp?.let { "${it.toInt()}%" } ?: " ",
-                                color = if (pp != null && pp >= 50) T.accCold else T.fgFaint,
+                                color = if (pp != null && pp >= 50) T.accCold else T.fgMuted,
                                 fontSize = (T.labelSize.value * s).sp,
                                 modifier = Modifier.alpha(if (pp != null && pp > 0) 1f else 0f)
                             )

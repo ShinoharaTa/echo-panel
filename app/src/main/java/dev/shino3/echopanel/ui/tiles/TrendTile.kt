@@ -79,7 +79,7 @@ fun TrendTile(tile: Node.Tile, cfg: PanelConfig) {
                         )
                         Text(
                             text = "  最低 %.1f  最高 %.1f".format(min, max),
-                            color = T.fgFaint,
+                            color = T.fgMuted,
                             fontSize = (T.labelSize.value * s).sp,
                             modifier = Modifier.padding(bottom = 4.dp)
                         )
