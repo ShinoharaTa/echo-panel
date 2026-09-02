@@ -86,6 +86,13 @@ data class PanelConfig(
 ) {
     val haConfigured: Boolean get() = mock || (haUrl.isNotBlank() && haToken.isNotBlank())
 
+    /** 端末の設定画面で入れた値を、空欄でないものだけ panels.json の上に重ねる */
+    fun withSettings(s: HaSettings): PanelConfig = copy(
+        haUrl = s.haUrl.ifBlank { haUrl },
+        haToken = s.haToken.ifBlank { haToken },
+        weatherEntity = s.weatherEntity.ifBlank { weatherEntity },
+    )
+
     companion object {
         private const val FILE = "panels.json"
 
@@ -98,7 +105,8 @@ data class PanelConfig(
             }
             val text = runCatching { f.readText() }.getOrNull().takeIf { !it.isNullOrBlank() }
                 ?: DEFAULT_JSON
-            return runCatching { parse(text) }.getOrElse { parse(DEFAULT_JSON) }
+            val parsed = runCatching { parse(text) }.getOrElse { parse(DEFAULT_JSON) }
+            return parsed.withSettings(HaSettings.load(c))
         }
 
         fun parse(text: String): PanelConfig {
@@ -151,7 +159,8 @@ data class PanelConfig(
          */
         val DEFAULT_JSON: String = """
 {
-  "haUrl": "http://10.1.111.145:8123",
+  "_ha": "HA の接続情報は画面右下の歯車からも入れられる。そちらに入れた値が優先される",
+  "haUrl": "",
   "haToken": "",
   "weatherEntity": "",
 

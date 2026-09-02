@@ -63,6 +63,21 @@ class HaClient(private val baseUrl: String, private val token: String) {
     private fun HttpURLConnection.readBody(): String =
         inputStream.bufferedReader().use { it.readText() }
 
+    /**
+     * 接続テスト。設定画面から呼ぶ。
+     * 成功なら HA が返すメッセージ ("API running.")、失敗なら理由を返す。
+     */
+    suspend fun ping(): Result<String> = withContext(Dispatchers.IO) {
+        runCatching {
+            val c = open("/api/")
+            when (val code = c.responseCode) {
+                200 -> JSONObject(c.readBody()).optString("message", "OK")
+                401 -> error("認証に失敗 (401)。トークンを確認")
+                else -> error("HTTP $code")
+            }
+        }
+    }
+
     suspend fun state(entityId: String): EntityState? = withContext(Dispatchers.IO) {
         runCatching {
             val c = open("/api/states/${enc(entityId)}")

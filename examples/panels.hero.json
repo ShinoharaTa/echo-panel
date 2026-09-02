@@ -1,5 +1,5 @@
 {
-  "haUrl": "http://10.1.111.145:8123",
+  "haUrl": "http://homeassistant.local:8123",
   "haToken": "",
   "weatherEntity": "",
   "pomodoroWorkMinutes": 25,

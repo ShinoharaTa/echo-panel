@@ -7,6 +7,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.material3.Text
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -41,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import dev.shino3.echopanel.config.HaSettings
 import dev.shino3.echopanel.config.PanelConfig
 import dev.shino3.echopanel.data.HaClient
 import dev.shino3.echopanel.pomodoro.Pomodoro
@@ -51,6 +54,7 @@ import dev.shino3.echopanel.ui.LocalBackdrop
 import dev.shino3.echopanel.ui.LocalPageNav
 import dev.shino3.echopanel.ui.PrecipLayer
 import dev.shino3.echopanel.ui.RenderNode
+import dev.shino3.echopanel.ui.SettingsScreen
 import dev.shino3.echopanel.ui.T
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -118,6 +122,7 @@ class MainActivity : ComponentActivity() {
 fun PanelRoot() {
     val ctx = LocalContext.current
     var cfg by remember { mutableStateOf(PanelConfig.load(ctx)) }
+    var showSettings by remember { mutableStateOf(false) }
 
     // panels.json の更新時刻を見て自動で読み直す。
     // Mac から adb push しただけで画面が変わるので、レイアウトの試行錯誤が速い。
@@ -272,6 +277,33 @@ fun PanelRoot() {
                         .background(if (i == pager.currentPage) T.fg else T.fgFaint)
                 )
             }
+        }
+
+        // 右下の歯車 → HA 接続設定。ページドットと同じ最弱色で、普段は目に入らない。
+        // 当たり判定は 40dp 角にして、右端のスワイプレーンより上に重ねる。
+        Box(
+            Modifier
+                .align(Alignment.BottomEnd)
+                .size(40.dp)
+                .clickable { showSettings = true },
+            contentAlignment = Alignment.Center
+        ) {
+            Text("⚙", color = T.fgFaint, fontSize = T.labelSize)
+        }
+
+        if (showSettings) {
+            // fallback には panels.json 側の値を渡す (設定が空欄のときの実効値)
+            val fromJson = remember(cfg) {
+                PanelConfig.parse(
+                    runCatching { PanelConfig.file(ctx).readText() }.getOrDefault(PanelConfig.DEFAULT_JSON)
+                )
+            }
+            SettingsScreen(
+                initial = HaSettings.load(ctx),
+                fallback = HaSettings(fromJson.haUrl, fromJson.haToken, fromJson.weatherEntity),
+                onSaved = { cfg = PanelConfig.load(ctx) },
+                onClose = { showSettings = false }
+            )
         }
     }
 }

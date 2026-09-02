@@ -11,7 +11,7 @@ Fully Kiosk + Web ページの構成でも見た目は作れるが、次の3つ�
    切り替わると残り時間が見えなくなる。Web からは自分がスクリーンセーバーになれない。
 2. **鳴らせない。** 覆われた WebView から確実に音を出す手段がない。
 3. **`navigator.wakeLock` が使えない。** セキュアコンテキスト必須のため
-   `http://10.1.111.145:8123` のような平文 HTTP 配信では利用できない。
+   `http://192.168.x.x:8123` のような平文 HTTP 配信では利用できない。
 
 アプリなら `DreamService` を実装して**自分がスクリーンセーバーになれる**ので、
 1 は「時計の下に残り時間を出す」だけで解決する。2 は `AlarmManager` +
@@ -105,6 +105,25 @@ API 30 には backdrop blur が無い。そこで背景の生成時に縮小→�
 
 タイル同士の見切りは余白だけで、枠の外は塗らない。ギャップから背景が覗くのが意図した絵。
 
+## Home Assistant の接続設定
+
+画面右下の薄い歯車をタップすると設定画面が開き、HA の URL・長期アクセストークン・
+背景用の天気エンティティを端末上で入れられる。`panels.json` を push しなくても
+HA 連携だけは端末だけで完結する。「接続テスト」で `/api/` を叩いて疎通と認証を確かめ、
+天気エンティティが入っていればその state まで取って表示する。
+
+- 保存先はアプリ内部の SharedPreferences。`/sdcard` に置く `panels.json` と違い
+  adb で誰でも読める場所には出ない。トークンはこちらに入れる方を勧める
+- 設定画面の値は `panels.json` の同名キー (`haUrl` / `haToken` / `weatherEntity`) より
+  **優先**する。空欄のキーは `panels.json` の値にフォールバックする
+- 「消去」で端末側の設定を全部消し、`panels.json` の値に戻す
+- 長いトークンをソフトキーボードで打つのは辛いので、欄をタップしてから Mac で
+  流し込む手がある
+
+  ```bash
+  adb -s <serial> shell input text 'eyJhbGciOi...'
+  ```
+
 ## panels.json
 
 `/sdcard/Android/data/dev.shino3.echopanel/files/panels.json`。root なしで書き込める。
@@ -119,9 +138,9 @@ adb -s <serial> push panels.json \
 
 | キー | 既定 | 内容 |
 |---|---|---|
-| `haUrl` | `""` | HA のベース URL |
-| `haToken` | `""` | 長期アクセストークン |
-| `weatherEntity` | `""` | 背景レイヤーが参照する weather エンティティ |
+| `haUrl` | `""` | HA のベース URL。設定画面の値があればそちらが優先 |
+| `haToken` | `""` | 長期アクセストークン。同上 (設定画面に入れる方を勧める) |
+| `weatherEntity` | `""` | 背景レイヤーが参照する weather エンティティ。同上 |
 | `pomodoroWorkMinutes` | 25 | |
 | `pomodoroBreakMinutes` | 5 | |
 | `mock` | `false` | true で HA を呼ばず作り物のデータを流す。レイアウト調整用 |
@@ -238,5 +257,6 @@ adb -s $D shell dumpsys activity activities | grep -m1 ResumedActivity
 
 ## 未実装
 
-- パネルの追加・並べ替えを端末上からできない (`panels.json` を push するしかない)
+- パネルの追加・並べ替えを端末上からできない (`panels.json` を push するしかない)。
+  HA の接続設定だけは端末上からできる
 - HA が落ちているときの再試行が素朴 (次の定期取得まで待つ)
