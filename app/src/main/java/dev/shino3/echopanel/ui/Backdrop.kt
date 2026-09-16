@@ -373,13 +373,16 @@ object BackdropRenderer {
 @Composable
 fun BackdropScrim(strength: Float, modifier: Modifier = Modifier) {
     if (strength <= 0.01f) return
-    val s = strength.coerceIn(0f, 1f)
+    val s = (strength * T.palette.scrimScale).coerceIn(0f, 1f)
+    // 幕の色はテーマから取る。明るい下地のテーマで黒を敷くと、
+    // 字を守るはずの幕がそのまま字を沈めてしまう。
+    val c = T.scrim
     ComposeCanvas(modifier.fillMaxSize()) {
         drawRect(
             brush = Brush.verticalGradient(
-                0.0f to Color.Black.copy(alpha = 0.62f * s),
-                0.45f to Color.Black.copy(alpha = 0.34f * s),
-                1.0f to Color.Black.copy(alpha = 0.70f * s),
+                0.0f to c.copy(alpha = 0.62f * s),
+                0.45f to c.copy(alpha = 0.34f * s),
+                1.0f to c.copy(alpha = 0.70f * s),
             )
         )
     }

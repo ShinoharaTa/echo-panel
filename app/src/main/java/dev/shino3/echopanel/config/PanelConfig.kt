@@ -82,6 +82,8 @@ data class PanelConfig(
     val backdropBrightness: Float,
     /** 文字を守る幕の濃さ 0-1。背景を明るくしたら上げる */
     val backdropScrim: Float,
+    /** 配色。dark / night / light / warm / auto (時刻で昼と夜を入れ替える) */
+    val theme: String,
     val pages: List<Page>,
 ) {
     val haConfigured: Boolean get() = mock || (haUrl.isNotBlank() && haToken.isNotBlank())
@@ -92,6 +94,8 @@ data class PanelConfig(
         haToken = s.haToken.ifBlank { haToken },
         weatherEntity = s.weatherEntity.ifBlank { weatherEntity },
     )
+
+    fun withUi(s: UiSettings): PanelConfig = copy(theme = s.theme.ifBlank { theme })
 
     companion object {
         private const val FILE = "panels.json"
@@ -106,7 +110,7 @@ data class PanelConfig(
             val text = runCatching { f.readText() }.getOrNull().takeIf { !it.isNullOrBlank() }
                 ?: DEFAULT_JSON
             val parsed = runCatching { parse(text) }.getOrElse { parse(DEFAULT_JSON) }
-            return parsed.withSettings(HaSettings.load(c))
+            return parsed.withSettings(HaSettings.load(c)).withUi(UiSettings.load(c))
         }
 
         fun parse(text: String): PanelConfig {
@@ -133,6 +137,7 @@ data class PanelConfig(
                 backdropIntervalSec = o.optInt("backdropIntervalSec", 60).coerceIn(5, 3600),
                 backdropBrightness = o.optDouble("backdropBrightness", 1.0).toFloat(),
                 backdropScrim = o.optDouble("backdropScrim", 0.55).toFloat(),
+                theme = o.optString("theme", "dark"),
                 pages = pages.ifEmpty { parse(DEFAULT_JSON).pages }
             )
         }
@@ -163,6 +168,9 @@ data class PanelConfig(
   "haUrl": "",
   "haToken": "",
   "weatherEntity": "",
+
+  "_theme": "dark=標準 / night=夜 / light=昼 / warm=暖色 / auto=時刻で昼と夜。歯車からも切り替えられる",
+  "theme": "dark",
 
   "_backdrop": "auto=写真があれば写真 / scene=空を描く / photo / off。写真は wallpapers/ に置く",
   "backdrop": "auto",

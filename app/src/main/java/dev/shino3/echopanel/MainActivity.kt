@@ -45,6 +45,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import dev.shino3.echopanel.config.HaSettings
 import dev.shino3.echopanel.config.PanelConfig
+import dev.shino3.echopanel.config.UiSettings
 import dev.shino3.echopanel.data.HaClient
 import dev.shino3.echopanel.data.HaStatus
 import dev.shino3.echopanel.data.rememberFeed
@@ -58,6 +59,7 @@ import dev.shino3.echopanel.ui.PrecipLayer
 import dev.shino3.echopanel.ui.RenderNode
 import dev.shino3.echopanel.ui.SettingsScreen
 import dev.shino3.echopanel.ui.T
+import dev.shino3.echopanel.ui.Themes
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -146,6 +148,18 @@ fun PanelRoot() {
     // 作業/休憩の長さも panels.json から与える
     LaunchedEffect(cfg.workMinutes, cfg.breakMinutes) {
         Pomodoro.configure(ctx, cfg.workMinutes, cfg.breakMinutes)
+    }
+
+    // 配色を当てる。auto のときだけ時刻を見張り続ける。
+    // mockHour は背景と同じものを使うので、昼のうちに夜の配色を確認できる。
+    LaunchedEffect(cfg.theme, cfg.mockHour) {
+        while (true) {
+            val at = ZonedDateTime.now()
+                .let { if (cfg.mockHour in 0..23) it.withHour(cfg.mockHour) else it }
+            T.palette = Themes.resolve(cfg.theme, at)
+            if (cfg.theme != Themes.AUTO) return@LaunchedEffect
+            delay(60_000L)
+        }
     }
 
     val pageCount = cfg.pages.size.coerceAtLeast(1)
@@ -314,6 +328,8 @@ fun PanelRoot() {
             SettingsScreen(
                 initial = HaSettings.load(ctx),
                 fallback = HaSettings(fromJson.haUrl, fromJson.haToken, fromJson.weatherEntity),
+                initialUi = UiSettings.load(ctx),
+                fallbackTheme = fromJson.theme,
                 onSaved = { cfg = PanelConfig.load(ctx) },
                 onClose = { showSettings = false }
             )
