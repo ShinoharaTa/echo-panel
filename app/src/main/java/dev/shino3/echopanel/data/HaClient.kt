@@ -25,6 +25,27 @@ class HaException(val code: Int, detail: String? = null) : RuntimeException(
 )
 
 /**
+ * 例外を机の前で読める言葉にする。
+ *
+ * 設定画面の「接続テスト」と、タイルの裏で回っている定期取得の
+ * 疎通表示 ([HaStatus]) の両方がこれを通る。片方だけ日本語で、
+ * もう片方が Java の例外文のままだと、同じ失敗が別物に見える。
+ */
+fun describeHaError(e: Throwable): String = when (e) {
+    is HaException -> e.message ?: "エラー"
+    is java.net.MalformedURLException,
+    is NumberFormatException,
+    is IllegalArgumentException -> "URL の形が不正 (例: http://192.168.1.10:8123)"
+    is java.net.UnknownHostException -> "ホスト名を解決できない"
+    is java.net.ConnectException -> "接続を拒否された。URL とポートを確認"
+    is java.net.SocketTimeoutException -> "応答がない (タイムアウト)"
+    is java.net.NoRouteToHostException -> "経路がない。ネットワークを確認"
+    is java.io.IOException -> "通信できない (${e.message ?: "原因不明"})"
+    is IllegalStateException -> e.message ?: "エラー"
+    else -> e.message ?: e::class.simpleName ?: "エラー"
+}
+
+/**
  * Home Assistant の REST クライアント。
  *
  * 天気もカレンダーも外気温の履歴も HA が既に持っているので、

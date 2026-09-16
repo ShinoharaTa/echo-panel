@@ -40,6 +40,7 @@ import dev.shino3.echopanel.config.HaSettings
 import dev.shino3.echopanel.config.UiSettings
 import dev.shino3.echopanel.data.HaClient
 import dev.shino3.echopanel.data.HaStatus
+import dev.shino3.echopanel.data.describeHaError
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.ZoneId
@@ -102,10 +103,10 @@ fun SettingsScreen(
                             if (st == null) "接続OK だが $effWeather が見つからない"
                             else "接続OK: $effWeather = ${st.state}"
                         },
-                        onFailure = { "接続OK だが $effWeather を取れない: ${describe(it)}" }
+                        onFailure = { "接続OK だが $effWeather を取れない: ${describeHaError(it)}" }
                     )
                 },
-                onFailure = { "失敗: ${describe(it)}" }
+                onFailure = { "失敗: ${describeHaError(it)}" }
             )
             busy = false
         }
@@ -301,18 +302,6 @@ private fun HaStatusLine() {
 
 private fun atLocal(epochMs: Long): ZonedDateTime =
     Instant.ofEpochMilli(epochMs).atZone(ZoneId.systemDefault())
-
-/** 例外を机の前で読める言葉にする */
-private fun describe(e: Throwable): String = when (e) {
-    is java.net.MalformedURLException,
-    is NumberFormatException,
-    is IllegalArgumentException -> "URL の形が不正 (例: http://192.168.1.10:8123)"
-    is java.net.UnknownHostException -> "ホスト名を解決できない"
-    is java.net.ConnectException -> "接続を拒否された。URL とポートを確認"
-    is java.net.SocketTimeoutException -> "応答がない (タイムアウト)"
-    is IllegalStateException -> e.message ?: "エラー"
-    else -> e.message ?: e::class.simpleName ?: "エラー"
-}
 
 @Composable
 private fun Field(

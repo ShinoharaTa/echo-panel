@@ -149,7 +149,7 @@ object HaStatus {
 
     fun onFailure(e: Throwable?) {
         consecutiveFailures++
-        lastError = e?.message ?: e?.let { it::class.simpleName } ?: "原因不明"
+        lastError = e?.let { describeHaError(it) } ?: "原因不明"
     }
 
     private const val DOWN_AFTER = 3
