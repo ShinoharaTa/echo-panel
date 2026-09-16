@@ -38,9 +38,14 @@ class RingService : Service() {
             return START_NOT_STICKY
         }
 
-        val finished = intent?.getStringExtra(EXTRA_FINISHED_PHASE) ?: Phase.WORK.name
-        val title = if (finished == Phase.WORK.name) "作業終了" else "休憩終了"
-        val text = if (finished == Phase.WORK.name) "5分の休憩へ" else "25分の作業へ"
+        // 冷えたプロセスで起こされることがあるので、長さを prefs から戻してから読む
+        Pomodoro.hydrate(this)
+
+        val workFinished = (intent?.getStringExtra(EXTRA_FINISHED_PHASE) ?: Phase.WORK.name) ==
+            Phase.WORK.name
+        val title = if (workFinished) "作業終了" else "休憩終了"
+        val nextMinutes = (if (workFinished) Pomodoro.breakMs else Pomodoro.workMs) / 60_000L
+        val text = "${nextMinutes}分の${if (workFinished) "休憩" else "作業"}へ"
 
         startForeground(NOTIF_ID, buildNotification(title, text))
         ring()

@@ -15,10 +15,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
@@ -31,9 +28,9 @@ import dev.shino3.echopanel.config.Node
 import dev.shino3.echopanel.config.PanelConfig
 import dev.shino3.echopanel.data.HaClient
 import dev.shino3.echopanel.data.MockData
+import dev.shino3.echopanel.data.rememberFeed
 import dev.shino3.echopanel.ui.T
 import dev.shino3.echopanel.ui.WeatherIcon
-import kotlinx.coroutines.delay
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
@@ -82,22 +79,24 @@ private fun rememberClient(cfg: PanelConfig): HaClient? =
 fun WeatherNowTile(tile: Node.Tile, cfg: PanelConfig) {
     val entity = tile.str("entity")
     val client = rememberClient(cfg)
-    var st by remember { mutableStateOf<HaClient.EntityState?>(null) }
+    val feed = rememberFeed<HaClient.EntityState?>("weather.now", null, entity)
 
     LaunchedEffect(entity, client, cfg.mock) {
-        if (cfg.mock) { st = MockData.weatherNow(cfg.mockCondition); return@LaunchedEffect }
+        if (cfg.mock) { feed.set(MockData.weatherNow(cfg.mockCondition)); return@LaunchedEffect }
         if (client == null || entity.isBlank()) return@LaunchedEffect
-        while (true) {
-            st = client.state(entity)
-            delay(10 * 60_000L)
-        }
+        feed.poll(NOW_INTERVAL_MS) { client.state(entity) }
     }
 
-    TileFrame(label = tile.labelOrNull("現在"), filled = tile.filled) {
+    val st = feed.value
+    TileFrame(
+        label = tile.labelOrNull("現在"),
+        filled = tile.filled,
+        stale = feed.isStale(NOW_INTERVAL_MS)
+    ) {
         when {
             !cfg.haConfigured -> TileNotice("haToken 未設定")
             entity.isBlank() && !cfg.mock -> TileNotice("entity 未設定")
-            st == null -> TileNotice("取得中")
+            st == null -> TileNotice(if (feed.failing) "HA に届かない" else "取得中")
             else -> BoxWithConstraints(Modifier.fillMaxSize()) {
                 // Column に入ると DSL マーカーで maxHeight が見えなくなるので先に取り出す
                 val boxH = maxHeight.value
@@ -110,12 +109,12 @@ fun WeatherNowTile(tile: Node.Tile, cfg: PanelConfig) {
                     verticalArrangement = Arrangement.Center,
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    val temp = st!!.attrDouble("temperature")
+                    val temp = st.attrDouble("temperature")
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy((big * 0.16f).dp)
                     ) {
-                        WeatherIcon(st!!.state, (big * 0.60f).dp)
+                        WeatherIcon(st.state, (big * 0.60f).dp)
                         Text(
                             text = temp?.let { "%.1f°".format(it) } ?: "—",
                             color = tempColor(temp),
@@ -123,9 +122,9 @@ fun WeatherNowTile(tile: Node.Tile, cfg: PanelConfig) {
                             fontWeight = T.displayWeight
                         )
                     }
-                    val hum = st!!.attrDouble("humidity")
+                    val hum = st.attrDouble("humidity")
                     Text(
-                        text = conditionLabel(st!!.state) +
+                        text = conditionLabel(st.state) +
                             (hum?.takeIf { boxH > 80f }?.let { "  湿度 ${it.toInt()}%" } ?: ""),
                         color = T.fgMuted,
                         fontSize = (big * 0.28f).coerceIn(T.labelSize.value, T.valueSize.value).sp
@@ -135,6 +134,12 @@ fun WeatherNowTile(tile: Node.Tile, cfg: PanelConfig) {
         }
     }
 }
+
+/** 現在の天気の取得間隔。HA 側の更新もこの程度の粒度 */
+private const val NOW_INTERVAL_MS = 10 * 60_000L
+
+/** 予報の取得間隔。1時間先までしか動かないので現在の天気より粗くてよい */
+private const val FORECAST_INTERVAL_MS = 30 * 60_000L
 
 private val DAY_FMT: DateTimeFormatter = DateTimeFormatter.ofPattern("E", Locale.JAPAN)
 private val HOUR_FMT: DateTimeFormatter = DateTimeFormatter.ofPattern("H時", Locale.JAPAN)
@@ -146,25 +151,27 @@ fun ForecastTile(tile: Node.Tile, cfg: PanelConfig) {
     val type = tile.str("forecastType", "daily")
     val count = tile.int("count", 5).coerceIn(1, 8)
     val client = rememberClient(cfg)
-    var list by remember { mutableStateOf<List<HaClient.ForecastEntry>>(emptyList()) }
+    val feed = rememberFeed<List<HaClient.ForecastEntry>>("weather.forecast", emptyList(), entity, type)
 
     LaunchedEffect(entity, type, client, cfg.mock) {
-        if (cfg.mock) { list = MockData.forecast(count); return@LaunchedEffect }
+        if (cfg.mock) { feed.set(MockData.forecast(count)); return@LaunchedEffect }
         if (client == null || entity.isBlank()) return@LaunchedEffect
-        while (true) {
-            list = client.forecast(entity, type)
-            delay(30 * 60_000L)
-        }
+        feed.poll(FORECAST_INTERVAL_MS) { client.forecast(entity, type) }
     }
 
+    val list = feed.value
     TileFrame(
         label = tile.labelOrNull(if (type == "hourly") "時間予報" else "週間予報"),
-        filled = tile.filled
+        filled = tile.filled,
+        stale = feed.isStale(FORECAST_INTERVAL_MS)
     ) {
         when {
             !cfg.haConfigured -> TileNotice("haToken 未設定")
             entity.isBlank() && !cfg.mock -> TileNotice("entity 未設定")
-            list.isEmpty() -> TileNotice("取得中")
+            list.isEmpty() -> TileNotice(
+                if (feed.failing && !feed.hasValue) "HA に届かない"
+                else if (feed.hasValue) "予報なし" else "取得中"
+            )
             else ->
                 if (type == "hourly") HourlyStrip(list.take(count), tile.scale)
                 else DailyRows(list.take(count), tile.scale)

@@ -45,7 +45,10 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import dev.shino3.echopanel.config.HaSettings
 import dev.shino3.echopanel.config.PanelConfig
+import dev.shino3.echopanel.config.UiSettings
 import dev.shino3.echopanel.data.HaClient
+import dev.shino3.echopanel.data.HaStatus
+import dev.shino3.echopanel.data.rememberFeed
 import dev.shino3.echopanel.pomodoro.Pomodoro
 import dev.shino3.echopanel.ui.BackdropRenderer
 import dev.shino3.echopanel.ui.BackdropScrim
@@ -56,11 +59,15 @@ import dev.shino3.echopanel.ui.PrecipLayer
 import dev.shino3.echopanel.ui.RenderNode
 import dev.shino3.echopanel.ui.SettingsScreen
 import dev.shino3.echopanel.ui.T
+import dev.shino3.echopanel.ui.Themes
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.ZonedDateTime
+
+/** 背景が参照する天気 condition の取得間隔 */
+private const val CONDITION_INTERVAL_MS = 10 * 60_000L
 
 class MainActivity : ComponentActivity() {
 
@@ -140,7 +147,19 @@ fun PanelRoot() {
 
     // 作業/休憩の長さも panels.json から与える
     LaunchedEffect(cfg.workMinutes, cfg.breakMinutes) {
-        Pomodoro.configure(cfg.workMinutes, cfg.breakMinutes)
+        Pomodoro.configure(ctx, cfg.workMinutes, cfg.breakMinutes)
+    }
+
+    // 配色を当てる。auto のときだけ時刻を見張り続ける。
+    // mockHour は背景と同じものを使うので、昼のうちに夜の配色を確認できる。
+    LaunchedEffect(cfg.theme, cfg.mockHour) {
+        while (true) {
+            val at = ZonedDateTime.now()
+                .let { if (cfg.mockHour in 0..23) it.withHour(cfg.mockHour) else it }
+            T.palette = Themes.resolve(cfg.theme, at)
+            if (cfg.theme != Themes.AUTO) return@LaunchedEffect
+            delay(60_000L)
+        }
     }
 
     val pageCount = cfg.pages.size.coerceAtLeast(1)
@@ -149,16 +168,18 @@ fun PanelRoot() {
     val scope = rememberCoroutineScope()
 
     // ---- 背景: 天気 condition の取得(mock はそのまま、実データは10分毎) ----
-    var condition by remember { mutableStateOf<String?>(null) }
+    // 取れなくなっても前の condition を捨てない。捨てると空の配色と
+    // 雨/雪のレイヤーが通信の瞬断だけで晴れに戻り、部屋の中で目に付く。
+    val condFeed = rememberFeed<String?>("backdrop.condition", null, cfg.weatherEntity)
     LaunchedEffect(cfg.mock, cfg.mockCondition, cfg.weatherEntity, cfg.haUrl, cfg.haToken) {
-        if (cfg.mock) { condition = cfg.mockCondition; return@LaunchedEffect }
-        if (!cfg.haConfigured || cfg.weatherEntity.isBlank()) { condition = null; return@LaunchedEffect }
-        val client = HaClient(cfg.haUrl, cfg.haToken)
-        while (true) {
-            condition = client.state(cfg.weatherEntity)?.state
-            delay(10 * 60_000L)
+        if (cfg.mock) { condFeed.set(cfg.mockCondition); return@LaunchedEffect }
+        if (!cfg.haConfigured || cfg.weatherEntity.isBlank()) {
+            condFeed.set(null); return@LaunchedEffect
         }
+        val client = HaClient(cfg.haUrl, cfg.haToken)
+        condFeed.poll(CONDITION_INTERVAL_MS) { client.state(cfg.weatherEntity).map { it?.state } }
     }
+    val condition = condFeed.value
 
     // ---- 背景: スライドショー ----
     // 一定間隔で絵を差し替え、クロスフェードで繋ぐ (Nest Hub の Ambient と同じ挙動)。
@@ -281,6 +302,8 @@ fun PanelRoot() {
 
         // 右下の歯車 → HA 接続設定。ページドットと同じ最弱色で、普段は目に入らない。
         // 当たり判定は 40dp 角にして、右端のスワイプレーンより上に重ねる。
+        // HA が続けて落ちているときだけ歯車が琥珀になる。画面のどこにも
+        // 出ない不調を、設定の入口そのものに背負わせる。
         Box(
             Modifier
                 .align(Alignment.BottomEnd)
@@ -288,7 +311,11 @@ fun PanelRoot() {
                 .clickable { showSettings = true },
             contentAlignment = Alignment.Center
         ) {
-            Text("⚙", color = T.fgFaint, fontSize = T.labelSize)
+            Text(
+                "⚙",
+                color = if (HaStatus.down) T.accHot else T.fgFaint,
+                fontSize = T.labelSize
+            )
         }
 
         if (showSettings) {
@@ -301,6 +328,8 @@ fun PanelRoot() {
             SettingsScreen(
                 initial = HaSettings.load(ctx),
                 fallback = HaSettings(fromJson.haUrl, fromJson.haToken, fromJson.weatherEntity),
+                initialUi = UiSettings.load(ctx),
+                fallbackTheme = fromJson.theme,
                 onSaved = { cfg = PanelConfig.load(ctx) },
                 onClose = { showSettings = false }
             )

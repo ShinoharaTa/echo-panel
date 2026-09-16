@@ -37,8 +37,16 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import dev.shino3.echopanel.config.HaSettings
+import dev.shino3.echopanel.config.UiSettings
 import dev.shino3.echopanel.data.HaClient
+import dev.shino3.echopanel.data.HaStatus
+import dev.shino3.echopanel.data.describeHaError
 import kotlinx.coroutines.launch
+import java.time.Instant
+import java.time.ZoneId
+import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 /**
  * Home Assistant の接続設定。画面右下の歯車から開く。
@@ -55,6 +63,9 @@ fun SettingsScreen(
     initial: HaSettings,
     /** panels.json 側の値。設定が空欄のときの実効値としてヒントに出す */
     fallback: HaSettings,
+    initialUi: UiSettings,
+    /** panels.json 側の theme。「JSON に従う」を選んだときの実効値 */
+    fallbackTheme: String,
     onSaved: () -> Unit,
     onClose: () -> Unit,
 ) {
@@ -67,6 +78,7 @@ fun SettingsScreen(
     var showToken by remember { mutableStateOf(false) }
     var status by remember { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
+    var theme by remember { mutableStateOf(initialUi.theme) }
 
     // 実効値: 空欄なら panels.json の値が使われる
     val effUrl = url.ifBlank { fallback.haUrl }
@@ -86,13 +98,15 @@ fun SettingsScreen(
             status = r.fold(
                 onSuccess = { msg ->
                     if (effWeather.isBlank()) "接続OK: $msg"
-                    else {
-                        val st = client.state(effWeather)
-                        if (st == null) "接続OK だが $effWeather が見つからない"
-                        else "接続OK: $effWeather = ${st.state}"
-                    }
+                    else client.state(effWeather).fold(
+                        onSuccess = { st ->
+                            if (st == null) "接続OK だが $effWeather が見つからない"
+                            else "接続OK: $effWeather = ${st.state}"
+                        },
+                        onFailure = { "接続OK だが $effWeather を取れない: ${describeHaError(it)}" }
+                    )
                 },
-                onFailure = { "失敗: ${describe(it)}" }
+                onFailure = { "失敗: ${describeHaError(it)}" }
             )
             busy = false
         }
@@ -102,6 +116,17 @@ fun SettingsScreen(
         HaSettings.save(ctx, HaSettings(url, token, weather))
         onSaved()
         onClose()
+    }
+
+    /**
+     * 配色だけは選んだ瞬間に確定させる。
+     * 部屋の明るさに合うかどうかは当ててみないと分からないので、
+     * 「保存」を挟むと選び直すたびに画面を閉じる羽目になる。
+     */
+    fun pickTheme(id: String) {
+        theme = id
+        UiSettings.save(ctx, UiSettings(id))
+        onSaved()
     }
 
     // 背面のタップがパネルに抜けないよう、全面で受ける
@@ -129,6 +154,8 @@ fun SettingsScreen(
                     color = T.fgFaint, fontSize = T.labelSize
                 )
             }
+            Spacer(Modifier.height(T.gapXs))
+            HaStatusLine()
             Spacer(Modifier.height(T.gapS))
 
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(T.gapM)) {
@@ -171,15 +198,23 @@ fun SettingsScreen(
                 SmallButton("接続テスト", enabled = !busy) { test() }
                 SmallButton("保存", primary = true) { save() }
                 SmallButton("閉じる") { onClose() }
-                if (!initial.isEmpty) {
+                if (!initial.isEmpty || !initialUi.isEmpty) {
                     SmallButton("消去") {
                         HaSettings.clear(ctx)
-                        url = ""; token = ""; weather = ""
+                        UiSettings.clear(ctx)
+                        url = ""; token = ""; weather = ""; theme = ""
                         status = "端末側の設定を消した。panels.json の値に戻る"
                         onSaved()
                     }
                 }
             }
+            Spacer(Modifier.height(T.gapM))
+            ThemeRow(
+                selected = theme,
+                fallbackTheme = fallbackTheme,
+                onPick = ::pickTheme
+            )
+
             status?.let {
                 Spacer(Modifier.height(T.gapS))
                 Text(
@@ -193,17 +228,80 @@ fun SettingsScreen(
     }
 }
 
-/** 例外を机の前で読める言葉にする */
-private fun describe(e: Throwable): String = when (e) {
-    is java.net.MalformedURLException,
-    is NumberFormatException,
-    is IllegalArgumentException -> "URL の形が不正 (例: http://192.168.1.10:8123)"
-    is java.net.UnknownHostException -> "ホスト名を解決できない"
-    is java.net.ConnectException -> "接続を拒否された。URL とポートを確認"
-    is java.net.SocketTimeoutException -> "応答がない (タイムアウト)"
-    is IllegalStateException -> e.message ?: "エラー"
-    else -> e.message ?: e::class.simpleName ?: "エラー"
+/**
+ * 配色の切り替え。
+ *
+ * 選んだ瞬間に当たるので、実際の部屋で見比べて決められる。
+ * 「JSON に従う」は端末側の指定を外して panels.json の値へ戻す。
+ */
+@Composable
+private fun ThemeRow(selected: String, fallbackTheme: String, onPick: (String) -> Unit) {
+    val effective = selected.ifBlank { fallbackTheme }
+    val note = when (effective) {
+        Themes.AUTO -> "時刻で昼と夜を入れ替える"
+        else -> Themes.all.firstOrNull { it.id == effective }?.note ?: ""
+    }
+
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text("配色", color = T.fg, fontSize = T.valueSize)
+        Spacer(Modifier.width(T.gapM))
+        Text(note, color = T.fgFaint, fontSize = T.labelSize)
+    }
+    Spacer(Modifier.height(T.gapS))
+
+    Row(horizontalArrangement = Arrangement.spacedBy(T.gapS)) {
+        Chip("JSON に従う", selected.isBlank()) { onPick("") }
+        Themes.all.forEach { p ->
+            Chip(p.label, selected == p.id) { onPick(p.id) }
+        }
+        Chip("自動", selected == Themes.AUTO) { onPick(Themes.AUTO) }
+    }
 }
+
+@Composable
+private fun Chip(label: String, selected: Boolean, onClick: () -> Unit) {
+    Text(
+        text = label,
+        color = if (selected) T.bg else T.fg,
+        fontSize = T.bodySize,
+        modifier = Modifier
+            .clip(RoundedCornerShape(T.radius))
+            .background(if (selected) T.fg else T.surface)
+            .border(1.dp, if (selected) T.fg else T.line, RoundedCornerShape(T.radius))
+            .clickable(onClick = onClick)
+            .padding(horizontal = T.gapM, vertical = T.gapS)
+    )
+}
+
+private val CLOCK: DateTimeFormatter = DateTimeFormatter.ofPattern("H:mm", Locale.JAPAN)
+
+/**
+ * いまパネルが HA と繋がっているかを1行で出す。
+ *
+ * タイル側は通信が切れても最後に取れた値を出し続けるので、
+ * 画面を見ているだけでは「止まっている」ことに気付けない。
+ * 気付いたときに原因まで辿れる場所がここ。
+ */
+@Composable
+private fun HaStatusLine() {
+    val failures = HaStatus.consecutiveFailures
+    val last = HaStatus.lastSuccessAt
+    val text = when {
+        failures > 0 ->
+            "${failures}回連続で失敗" + (HaStatus.lastError?.let { " — $it" } ?: "") +
+                (if (last > 0L) "  (最終取得 ${CLOCK.format(atLocal(last))})" else "")
+        last > 0L -> "最終取得 ${CLOCK.format(atLocal(last))}"
+        else -> "まだ取得していない"
+    }
+    Text(
+        "疎通: $text",
+        color = if (HaStatus.down) T.accHot else T.fgFaint,
+        fontSize = T.labelSize
+    )
+}
+
+private fun atLocal(epochMs: Long): ZonedDateTime =
+    Instant.ofEpochMilli(epochMs).atZone(ZoneId.systemDefault())
 
 @Composable
 private fun Field(

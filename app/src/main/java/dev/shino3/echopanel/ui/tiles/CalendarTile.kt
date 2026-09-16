@@ -24,6 +24,7 @@ import dev.shino3.echopanel.config.Node
 import dev.shino3.echopanel.config.PanelConfig
 import dev.shino3.echopanel.data.HaClient
 import dev.shino3.echopanel.data.MockData
+import dev.shino3.echopanel.data.rememberFeed
 import dev.shino3.echopanel.ui.T
 import kotlinx.coroutines.delay
 import java.time.Duration
@@ -31,6 +32,9 @@ import java.time.LocalDate
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+
+/** 予定の取得間隔 */
+private const val CALENDAR_INTERVAL_MS = 5 * 60_000L
 
 private val HM: DateTimeFormatter = DateTimeFormatter.ofPattern("H:mm", Locale.JAPAN)
 private val MD: DateTimeFormatter = DateTimeFormatter.ofPattern("M/d", Locale.JAPAN)
@@ -52,16 +56,13 @@ fun CalendarTile(tile: Node.Tile, cfg: PanelConfig) {
     val client = remember(cfg.haUrl, cfg.haToken) {
         if (cfg.haConfigured) HaClient(cfg.haUrl, cfg.haToken) else null
     }
-    var events by remember { mutableStateOf<List<HaClient.CalendarEvent>>(emptyList()) }
+    val feed = rememberFeed<List<HaClient.CalendarEvent>>("calendar", emptyList(), entity, days)
     var now by remember { mutableStateOf(ZonedDateTime.now()) }
 
     LaunchedEffect(entity, days, client, cfg.mock) {
-        if (cfg.mock) { events = MockData.calendar(); return@LaunchedEffect }
+        if (cfg.mock) { feed.set(MockData.calendar()); return@LaunchedEffect }
         if (client == null || entity.isBlank()) return@LaunchedEffect
-        while (true) {
-            events = client.calendarEvents(entity, days)
-            delay(5 * 60_000L)
-        }
+        feed.poll(CALENDAR_INTERVAL_MS) { client.calendarEvents(entity, days) }
     }
     // カウントダウンの時計。30秒刻みで十分
     LaunchedEffect(Unit) {
@@ -71,11 +72,18 @@ fun CalendarTile(tile: Node.Tile, cfg: PanelConfig) {
         }
     }
 
-    TileFrame(label = tile.labelOrNull("予定"), filled = tile.filled) {
+    val events = feed.value
+    TileFrame(
+        label = tile.labelOrNull("予定"),
+        filled = tile.filled,
+        stale = feed.isStale(CALENDAR_INTERVAL_MS)
+    ) {
         when {
             !cfg.haConfigured -> TileNotice("haToken 未設定")
             entity.isBlank() && !cfg.mock -> TileNotice("entity 未設定")
-            events.isEmpty() -> TileNotice("予定なし")
+            events.isEmpty() -> TileNotice(
+                if (feed.failing && !feed.hasValue) "HA に届かない" else "予定なし"
+            )
             else -> {
                 val s = tile.scale
                 Column(

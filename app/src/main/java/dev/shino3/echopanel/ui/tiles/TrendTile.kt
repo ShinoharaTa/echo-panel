@@ -11,10 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -26,8 +23,11 @@ import dev.shino3.echopanel.config.Node
 import dev.shino3.echopanel.config.PanelConfig
 import dev.shino3.echopanel.data.HaClient
 import dev.shino3.echopanel.data.MockData
+import dev.shino3.echopanel.data.rememberFeed
 import dev.shino3.echopanel.ui.T
-import kotlinx.coroutines.delay
+
+/** 履歴の取得間隔 */
+private const val TREND_INTERVAL_MS = 10 * 60_000L
 
 /**
  * センサーの推移。外気温の 24 時間推移を想定している。
@@ -41,25 +41,26 @@ fun TrendTile(tile: Node.Tile, cfg: PanelConfig) {
     val client = remember(cfg.haUrl, cfg.haToken) {
         if (cfg.haConfigured) HaClient(cfg.haUrl, cfg.haToken) else null
     }
-    var points by remember { mutableStateOf<List<HaClient.TrendPoint>>(emptyList()) }
+    val feed = rememberFeed<List<HaClient.TrendPoint>>("sensor.trend", emptyList(), entity, hours)
 
     LaunchedEffect(entity, hours, client, cfg.mock) {
-        if (cfg.mock) { points = MockData.trend(hours); return@LaunchedEffect }
+        if (cfg.mock) { feed.set(MockData.trend(hours)); return@LaunchedEffect }
         if (client == null || entity.isBlank()) return@LaunchedEffect
-        while (true) {
-            points = client.history(entity, hours)
-            delay(10 * 60_000L)
-        }
+        feed.poll(TREND_INTERVAL_MS) { client.history(entity, hours) }
     }
 
+    val points = feed.value
     TileFrame(
         label = tile.labelOrNull("推移")?.let { "$it ${hours}h" },
-        filled = tile.filled
+        filled = tile.filled,
+        stale = feed.isStale(TREND_INTERVAL_MS)
     ) {
         when {
             !cfg.haConfigured -> TileNotice("haToken 未設定")
             entity.isBlank() && !cfg.mock -> TileNotice("entity 未設定")
-            points.size < 2 -> TileNotice("データ不足")
+            points.size < 2 -> TileNotice(
+                if (feed.failing && !feed.hasValue) "HA に届かない" else "データ不足"
+            )
             else -> {
                 val s = tile.scale
                 val values = points.map { it.value }
@@ -94,9 +95,16 @@ fun TrendTile(tile: Node.Tile, cfg: PanelConfig) {
                         val h = size.height
                         if (w <= 0f || h <= 0f) return@Canvas
 
+                        // 横軸は時刻。HA からは significant_changes_only で取っていて
+                        // 点の間隔が一定でないため、添字を x にすると
+                        // 「変化が少なかった時間帯」が不当に広がって形が歪む。
+                        val t0 = points.first().at.toEpochMilli()
+                        val tSpan = (points.last().at.toEpochMilli() - t0)
+                            .coerceAtLeast(1L).toFloat()
+
                         val path = Path()
                         points.forEachIndexed { i, p ->
-                            val x = w * (i.toFloat() / (points.size - 1).toFloat())
+                            val x = w * ((p.at.toEpochMilli() - t0).toFloat() / tSpan)
                             val y = h - ((p.value - min) / span).toFloat() * h
                             if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
                         }
