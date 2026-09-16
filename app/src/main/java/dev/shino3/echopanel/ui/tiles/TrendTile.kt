@@ -94,9 +94,16 @@ fun TrendTile(tile: Node.Tile, cfg: PanelConfig) {
                         val h = size.height
                         if (w <= 0f || h <= 0f) return@Canvas
 
+                        // 横軸は時刻。HA からは significant_changes_only で取っていて
+                        // 点の間隔が一定でないため、添字を x にすると
+                        // 「変化が少なかった時間帯」が不当に広がって形が歪む。
+                        val t0 = points.first().at.toEpochMilli()
+                        val tSpan = (points.last().at.toEpochMilli() - t0)
+                            .coerceAtLeast(1L).toFloat()
+
                         val path = Path()
                         points.forEachIndexed { i, p ->
-                            val x = w * (i.toFloat() / (points.size - 1).toFloat())
+                            val x = w * ((p.at.toEpochMilli() - t0).toFloat() / tSpan)
                             val y = h - ((p.value - min) / span).toFloat() * h
                             if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
                         }

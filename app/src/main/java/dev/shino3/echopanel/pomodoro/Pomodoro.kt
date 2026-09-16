@@ -4,6 +4,7 @@ import android.app.AlarmManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.os.SystemClock
 
 /**
@@ -47,18 +48,42 @@ object Pomodoro {
      */
     private const val K_CONSUMED = "consumed_end_at"
 
+    private const val K_WORK_MIN = "work_min"
+    private const val K_BREAK_MIN = "break_min"
+
     const val ACTION_FIRE = "dev.shino3.echopanel.POMODORO_FIRE"
     const val EXTRA_PHASE = "phase"
     const val EXTRA_END_AT = "end_at"
 
-    var workMs: Long = 25 * 60 * 1000L
+    private const val DEFAULT_WORK_MIN = 25
+    private const val DEFAULT_BREAK_MIN = 5
+
+    /**
+     * 作業と休憩の長さ。
+     *
+     * プロセス内変数だけで持つと、アプリが殺された後に AlarmReceiver が
+     * 叩き起こされたときに既定の 25/5 分へ戻り、panels.json で指定した
+     * 長さが黙って捨てられる (鳴動のたびに休憩が 5 分になる)。
+     * prefs にも書き、Context を触れる入口では必ず hydrate してから読む。
+     */
+    var workMs: Long = DEFAULT_WORK_MIN * 60_000L
         private set
-    var breakMs: Long = 5 * 60 * 1000L
+    var breakMs: Long = DEFAULT_BREAK_MIN * 60_000L
         private set
 
-    fun configure(workMinutes: Int, breakMinutes: Int) {
-        workMs = workMinutes.coerceIn(1, 240) * 60_000L
-        breakMs = breakMinutes.coerceIn(1, 240) * 60_000L
+    fun configure(c: Context, workMinutes: Int, breakMinutes: Int) {
+        val w = workMinutes.coerceIn(1, 240)
+        val b = breakMinutes.coerceIn(1, 240)
+        workMs = w * 60_000L
+        breakMs = b * 60_000L
+        prefs(c).edit().putInt(K_WORK_MIN, w).putInt(K_BREAK_MIN, b).apply()
+    }
+
+    /** 保存済みの長さをプロセス内変数へ戻す。冷えたプロセスで最初に呼ぶ */
+    fun hydrate(c: Context) {
+        val p = prefs(c)
+        workMs = p.getInt(K_WORK_MIN, DEFAULT_WORK_MIN) * 60_000L
+        breakMs = p.getInt(K_BREAK_MIN, DEFAULT_BREAK_MIN) * 60_000L
     }
 
     fun durationOf(phase: Phase): Long = if (phase == Phase.WORK) workMs else breakMs
@@ -66,6 +91,7 @@ object Pomodoro {
     private fun prefs(c: Context) = c.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
     fun load(c: Context): PomodoroState {
+        hydrate(c)
         val p = prefs(c)
         val phase = if (p.getString(K_PHASE, "WORK") == "BREAK") Phase.BREAK else Phase.WORK
         val running = p.getBoolean(K_RUNNING, false)
@@ -129,6 +155,7 @@ object Pomodoro {
      * 両経路が走って休憩を丸ごと飛ばす (実機で発生した)。
      */
     fun advanceOnce(c: Context, endAt: Long) {
+        hydrate(c)
         val p = prefs(c)
         if (endAt != 0L && p.getLong(K_CONSUMED, -1L) == endAt) return
 
@@ -158,7 +185,21 @@ object Pomodoro {
         val pi = pendingIntent(c, phase, endAt)
         // Doze 下でも確実に発火させる。端末は常時給電なので電池影響は考えなくてよい。
         val triggerElapsed = SystemClock.elapsedRealtime() + (endAt - System.currentTimeMillis())
-        am.setExactAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, triggerElapsed, pi)
+
+        // API 31 以降は SCHEDULE_EXACT_ALARM が既定で降りない端末があり、
+        // 権限なしで setExactAndAllowWhileIdle を呼ぶと SecurityException で落ちる。
+        // 対象の Echo Show は API 30 なので踏まないが、手持ちの新しい端末に
+        // 入れたときにポモドーロ開始でクラッシュしないよう、不正確な予約へ落とす。
+        val canExact = Build.VERSION.SDK_INT < Build.VERSION_CODES.S || am.canScheduleExactAlarms()
+        runCatching {
+            if (canExact) {
+                am.setExactAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, triggerElapsed, pi)
+            } else {
+                am.setAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, triggerElapsed, pi)
+            }
+        }.onFailure {
+            am.setAndAllowWhileIdle(AlarmManager.ELAPSED_REALTIME_WAKEUP, triggerElapsed, pi)
+        }
     }
 
     private fun cancel(c: Context) {

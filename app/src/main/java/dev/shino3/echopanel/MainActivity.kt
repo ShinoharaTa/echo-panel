@@ -140,7 +140,7 @@ fun PanelRoot() {
 
     // 作業/休憩の長さも panels.json から与える
     LaunchedEffect(cfg.workMinutes, cfg.breakMinutes) {
-        Pomodoro.configure(cfg.workMinutes, cfg.breakMinutes)
+        Pomodoro.configure(ctx, cfg.workMinutes, cfg.breakMinutes)
     }
 
     val pageCount = cfg.pages.size.coerceAtLeast(1)
