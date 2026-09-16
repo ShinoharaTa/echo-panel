@@ -38,7 +38,13 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import dev.shino3.echopanel.config.HaSettings
 import dev.shino3.echopanel.data.HaClient
+import dev.shino3.echopanel.data.HaStatus
 import kotlinx.coroutines.launch
+import java.time.Instant
+import java.time.ZoneId
+import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 /**
  * Home Assistant の接続設定。画面右下の歯車から開く。
@@ -86,11 +92,13 @@ fun SettingsScreen(
             status = r.fold(
                 onSuccess = { msg ->
                     if (effWeather.isBlank()) "接続OK: $msg"
-                    else {
-                        val st = client.state(effWeather)
-                        if (st == null) "接続OK だが $effWeather が見つからない"
-                        else "接続OK: $effWeather = ${st.state}"
-                    }
+                    else client.state(effWeather).fold(
+                        onSuccess = { st ->
+                            if (st == null) "接続OK だが $effWeather が見つからない"
+                            else "接続OK: $effWeather = ${st.state}"
+                        },
+                        onFailure = { "接続OK だが $effWeather を取れない: ${describe(it)}" }
+                    )
                 },
                 onFailure = { "失敗: ${describe(it)}" }
             )
@@ -129,6 +137,8 @@ fun SettingsScreen(
                     color = T.fgFaint, fontSize = T.labelSize
                 )
             }
+            Spacer(Modifier.height(T.gapXs))
+            HaStatusLine()
             Spacer(Modifier.height(T.gapS))
 
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(T.gapM)) {
@@ -192,6 +202,36 @@ fun SettingsScreen(
         }
     }
 }
+
+private val CLOCK: DateTimeFormatter = DateTimeFormatter.ofPattern("H:mm", Locale.JAPAN)
+
+/**
+ * いまパネルが HA と繋がっているかを1行で出す。
+ *
+ * タイル側は通信が切れても最後に取れた値を出し続けるので、
+ * 画面を見ているだけでは「止まっている」ことに気付けない。
+ * 気付いたときに原因まで辿れる場所がここ。
+ */
+@Composable
+private fun HaStatusLine() {
+    val failures = HaStatus.consecutiveFailures
+    val last = HaStatus.lastSuccessAt
+    val text = when {
+        failures > 0 ->
+            "${failures}回連続で失敗" + (HaStatus.lastError?.let { " — $it" } ?: "") +
+                (if (last > 0L) "  (最終取得 ${CLOCK.format(atLocal(last))})" else "")
+        last > 0L -> "最終取得 ${CLOCK.format(atLocal(last))}"
+        else -> "まだ取得していない"
+    }
+    Text(
+        "疎通: $text",
+        color = if (HaStatus.down) T.accHot else T.fgFaint,
+        fontSize = T.labelSize
+    )
+}
+
+private fun atLocal(epochMs: Long): ZonedDateTime =
+    Instant.ofEpochMilli(epochMs).atZone(ZoneId.systemDefault())
 
 /** 例外を机の前で読める言葉にする */
 private fun describe(e: Throwable): String = when (e) {

@@ -1,11 +1,14 @@
 package dev.shino3.echopanel.ui.tiles
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -40,6 +43,8 @@ import dev.shino3.echopanel.ui.T
 fun TileFrame(
     label: String? = null,
     filled: Boolean = true,
+    /** 出している値が古い。右上に小さな印を出す (閾値を超えたときだけ灯る有彩色) */
+    stale: Boolean = false,
     content: @Composable () -> Unit,
 ) {
     val shape = RoundedCornerShape(T.radius)
@@ -68,18 +73,32 @@ fun TileFrame(
             .border(1.dp, T.glassEdge, shape)
     }
 
-    Column(m.padding(horizontal = 12.dp, vertical = 10.dp)) {
-        if (label != null) {
-            Text(
-                text = label,
-                color = T.fgFaint,
-                fontSize = T.labelSize,
-                fontWeight = T.labelWeight,
-                modifier = Modifier.padding(bottom = 4.dp)
-            )
+    Box(m) {
+        Column(Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 10.dp)) {
+            if (label != null) {
+                Text(
+                    text = label,
+                    color = T.fgFaint,
+                    fontSize = T.labelSize,
+                    fontWeight = T.labelWeight,
+                    modifier = Modifier.padding(bottom = 4.dp)
+                )
+            }
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                content()
+            }
         }
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            content()
+
+        // 古い値を黙って出さない。文字を足すと狭い画面では邪魔なので点ひとつ。
+        if (stale) {
+            Box(
+                Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(5.dp)
+                    .size(5.dp)
+                    .clip(CircleShape)
+                    .background(T.accHot)
+            )
         }
     }
 }

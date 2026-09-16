@@ -11,10 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -26,8 +23,11 @@ import dev.shino3.echopanel.config.Node
 import dev.shino3.echopanel.config.PanelConfig
 import dev.shino3.echopanel.data.HaClient
 import dev.shino3.echopanel.data.MockData
+import dev.shino3.echopanel.data.rememberFeed
 import dev.shino3.echopanel.ui.T
-import kotlinx.coroutines.delay
+
+/** 履歴の取得間隔 */
+private const val TREND_INTERVAL_MS = 10 * 60_000L
 
 /**
  * センサーの推移。外気温の 24 時間推移を想定している。
@@ -41,25 +41,26 @@ fun TrendTile(tile: Node.Tile, cfg: PanelConfig) {
     val client = remember(cfg.haUrl, cfg.haToken) {
         if (cfg.haConfigured) HaClient(cfg.haUrl, cfg.haToken) else null
     }
-    var points by remember { mutableStateOf<List<HaClient.TrendPoint>>(emptyList()) }
+    val feed = rememberFeed<List<HaClient.TrendPoint>>("sensor.trend", emptyList(), entity, hours)
 
     LaunchedEffect(entity, hours, client, cfg.mock) {
-        if (cfg.mock) { points = MockData.trend(hours); return@LaunchedEffect }
+        if (cfg.mock) { feed.set(MockData.trend(hours)); return@LaunchedEffect }
         if (client == null || entity.isBlank()) return@LaunchedEffect
-        while (true) {
-            points = client.history(entity, hours)
-            delay(10 * 60_000L)
-        }
+        feed.poll(TREND_INTERVAL_MS) { client.history(entity, hours) }
     }
 
+    val points = feed.value
     TileFrame(
         label = tile.labelOrNull("推移")?.let { "$it ${hours}h" },
-        filled = tile.filled
+        filled = tile.filled,
+        stale = feed.isStale(TREND_INTERVAL_MS)
     ) {
         when {
             !cfg.haConfigured -> TileNotice("haToken 未設定")
             entity.isBlank() && !cfg.mock -> TileNotice("entity 未設定")
-            points.size < 2 -> TileNotice("データ不足")
+            points.size < 2 -> TileNotice(
+                if (feed.failing && !feed.hasValue) "HA に届かない" else "データ不足"
+            )
             else -> {
                 val s = tile.scale
                 val values = points.map { it.value }
